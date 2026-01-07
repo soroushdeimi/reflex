@@ -573,7 +573,7 @@ func acceptQUICConnections(listener net.Listener) {
 
 1. **اتصال اولیه** از یه کانال بی‌خطر (مثلاً domain fronting یا پراکسی دیگه) برقرار می‌شه
 2. **Handshake Reflex** روی این اتصال انجام می‌شه
-3. **بعد از برقراری جلسه**، سرور به کلاینت دستور می‌ده که اتصال QUIC رو به مسیر مستقیم (IP واقعی سرور) migrate کنه
+3. **بعد از برقراری سِشِن**، سرور به کلاینت دستور می‌ده که اتصال QUIC رو به مسیر مستقیم (IP واقعی سرور) migrate کنه
 4. **سانسورچی** فقط اتصال اولیه بی‌خطر رو می‌بینه و بعد از اون، جریان ترافیک QUIC رو می‌بینه که فاقد هرگونه handshake با متن آشکار هست
 
 ```go
@@ -589,7 +589,7 @@ func (s *QUICSession) MigrateToDirect(serverAddr string) error {
     
     // برقراری اتصال جدید به IP مستقیم
     tlsConfig := &tls.Config{
-        // استفاده از کلیدهای جلسه قبلی
+        // استفاده از کلیدهای سِشِن قبلی
     }
     
     newConn, err := quic.DialAddr(serverAddr, tlsConfig, &quic.Config{
@@ -599,7 +599,7 @@ func (s *QUICSession) MigrateToDirect(serverAddr string) error {
         return err
     }
     
-    // انتقال state (کلیدهای جلسه، nonce‌ها، و غیره)
+    // انتقال state (کلیدهای سِشِن، nonce‌ها، و غیره)
     s.conn = newConn
     s.migrated = true
     
