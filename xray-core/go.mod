@@ -55,3 +55,7 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+replace github.com/cloudflare/circl => ../local-modules/cloudflare/circl@v1.6.2
+
+replace github.com/klauspost/compress => ../local-modules/klauspost/compress@v1.17.4
