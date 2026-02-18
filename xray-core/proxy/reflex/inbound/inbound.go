@@ -4,7 +4,9 @@ import (
 	"bufio"
 	"context"
 	"encoding/binary"
+	"fmt"
 	"io"
+	"os"
 	"time"
 
 	"github.com/xtls/xray-core/common"
@@ -23,9 +25,27 @@ import (
 )
 
 func init() {
+	newError("Reflex inbound init() called - registering handler").AtInfo()
 	common.Must(common.RegisterConfig((*Config)(nil), func(ctx context.Context, config interface{}) (interface{}, error) {
-		return New(ctx, config.(*Config))
+		newError("Reflex inbound config handler called").AtInfo()
+		h, err := New(ctx, config.(*Config))
+		if err != nil {
+			newError("Reflex inbound New() failed: ", err).AtError()
+		} else {
+			newError("Reflex inbound New() succeeded").AtInfo()
+		}
+		return h, err
 	}))
+	newError("Reflex inbound init() completed").AtInfo()
+}
+
+func logToFile(msg string) {
+	f, err := os.OpenFile("reflex-inbound-init.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return
+	}
+	defer f.Close()
+	f.WriteString(msg + "\n")
 }
 
 // Handler is an inbound connection handler for Reflex protocol
@@ -37,25 +57,34 @@ type Handler struct {
 
 // New creates a new Reflex inbound handler
 func New(ctx context.Context, config *Config) (*Handler, error) {
+	newError("Reflex inbound New() called").AtInfo()
+
 	v := core.MustFromContext(ctx)
 	handler := &Handler{
 		policyManager: v.GetFeature(policy.ManagerType()).(policy.Manager),
 		validator:     reflex.NewValidator(),
 	}
+	newError("Reflex handler created, clients count: ", len(config.Clients)).AtInfo()
 
 	// Add users to validator
-	for _, user := range config.Clients {
+	for i, user := range config.Clients {
+		newError("Processing client ", i, ": ", user).AtInfo()
 		mUser, err := user.ToMemoryUser()
 		if err != nil {
+			newError("Failed to convert user: ", err).AtError()
 			return nil, errors.New("failed to get Reflex user").Base(err).AtError()
 		}
+		newError("Converted user to memory user: ", mUser.Email).AtInfo()
 		if err := handler.validator.Add(mUser); err != nil {
+			newError("Failed to add user to validator: ", err).AtError()
 			return nil, errors.New("failed to add user").Base(err).AtError()
 		}
+		newError("Added user to validator: ", mUser.Email).AtInfo()
 	}
 
 	// Setup fallbacks
 	if config.Fallbacks != nil {
+		newError("Setting up ", len(config.Fallbacks), " fallbacks").AtInfo()
 		handler.fallbacks = make(map[string]map[string]map[string]*Fallback)
 		for _, fb := range config.Fallbacks {
 			if handler.fallbacks[fb.Name] == nil {
@@ -68,6 +97,7 @@ func New(ctx context.Context, config *Config) (*Handler, error) {
 		}
 	}
 
+	newError("Reflex inbound New() completed successfully").AtInfo()
 	return handler, nil
 }
 
@@ -78,6 +108,7 @@ func (*Handler) Network() []net.Network {
 
 // Process handles incoming connections
 func (h *Handler) Process(ctx context.Context, network net.Network, conn stat.Connection, dispatcher routing.Dispatcher) error {
+	newError("Reflex inbound connection from ", conn.RemoteAddr()).AtInfo()
 	sessionPolicy := h.policyManager.ForLevel(0)
 
 	if err := conn.SetReadDeadline(time.Now().Add(sessionPolicy.Timeouts.Handshake)); err != nil {
@@ -168,6 +199,7 @@ func (h *Handler) handleReflexHandshake(
 	}
 
 	newError("handshake completed for user: ", account.Email).AtInfo()
+	logToFile("HANDSHAKE COMPLETED for user: " + account.Email)
 
 	// Create frame encoder/decoder
 	frameEncoder, err := encoding.NewFrameEncoder(sessionKey)
@@ -214,7 +246,7 @@ func (h *Handler) handleReflexHandshake(
 
 	// Setup dispatcher link
 	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
+	_ = cancel  // Keep for now but don't defer it - let responseDone signal completion
 
 	link, err := dispatcher.Dispatch(ctx, request.Destination())
 	if err != nil {
@@ -223,28 +255,33 @@ func (h *Handler) handleReflexHandshake(
 
 	// Transfer data
 	requestDone := func() error {
-		defer cancel()
-
+		logToFile(fmt.Sprintf("requestDone: First frame payload size: %d bytes", len(firstFrame.Payload)))
 		// Write first frame data to link (zero-copy with FromBytes)
 		if len(firstFrame.Payload) > 12 { // After header
 			headerSize := 12 // Simplified: command(1) + port(2) + address(variable, ~9)
 			if headerSize < len(firstFrame.Payload) {
 				// Use FromBytes to avoid allocation (unmanaged buffer)
 				payload := buf.FromBytes(firstFrame.Payload[headerSize:])
+				logToFile(fmt.Sprintf("requestDone: Sending %d bytes from first frame to link.Writer", len(firstFrame.Payload[headerSize:])))
 				if err := link.Writer.WriteMultiBuffer(buf.MultiBuffer{payload}); err != nil {
+					logToFile(fmt.Sprintf("requestDone: WriteMultiBuffer error on first frame: %v", err))
 					return err
 				}
+				logToFile("requestDone: First frame data sent successfully")
 			}
 		}
 		// Return frame struct to pool after first frame is processed
 		defer encoding.PutFrame(firstFrame)
 
 		// Read subsequent frames and write to dispatcher
+		logToFile("requestDone: Starting to read subsequent frames from client")
 		for {
 			frame, err := frameDecoder.ReadFrame(reader)
 			if err != nil {
+				logToFile(fmt.Sprintf("requestDone: ReadFrame error: %v", err))
 				return err
 			}
+			logToFile(fmt.Sprintf("requestDone: Got frame type %d with %d bytes", frame.Type, len(frame.Payload)))
 
 			switch frame.Type {
 			case encoding.FrameTypeData:
@@ -257,6 +294,7 @@ func (h *Handler) handleReflexHandshake(
 				// Return frame struct to pool after payload is written
 				encoding.PutFrame(frame)
 			case encoding.FrameTypeClose:
+				logToFile("requestDone: Received close frame from client, returning")
 				encoding.PutFrame(frame)
 				return nil
 			case encoding.FrameTypePadding, encoding.FrameTypeTiming:
@@ -271,24 +309,34 @@ func (h *Handler) handleReflexHandshake(
 	}
 
 	responseDone := func() error {
-		defer cancel()
-
+		newError("responseDone: Starting to read from dispatcher").AtInfo()
 		// Read from dispatcher and write as frames
 		for {
+			newError("responseDone: Waiting for response from dispatcher...").AtDebug()
 			mb, err := link.Reader.ReadMultiBuffer()
 			if err != nil {
+				newError("responseDone: ReadMultiBuffer error: ", err).AtWarning()
+				// Send close frame to signal end of response
+				closeFrame := &encoding.Frame{
+					Type: encoding.FrameTypeClose,
+				}
+				frameEncoder.WriteFrame(conn, closeFrame)
 				return err
 			}
 
-			for _, b := range mb {
+			newError(fmt.Sprintf("responseDone: Got %d buffers from dispatcher", len(mb))).AtDebug()
+			for i, b := range mb {
+				newError(fmt.Sprintf("responseDone: Buffer %d has %d bytes", i, len(b.Bytes()))).AtDebug()
 				frame := &encoding.Frame{
 					Type:    encoding.FrameTypeData,
 					Payload: b.Bytes(),
 				}
 				if err := frameEncoder.WriteFrame(conn, frame); err != nil {
+					newError("responseDone: WriteFrame error: ", err).AtWarning()
 					buf.ReleaseMulti(mb)
 					return err
 				}
+				newError(fmt.Sprintf("responseDone: Sent %d bytes back to client", len(b.Bytes()))).AtDebug()
 			}
 			buf.ReleaseMulti(mb)
 		}

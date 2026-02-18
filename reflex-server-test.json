@@ -6,7 +6,7 @@
   },
   "inbounds": [
     {
-      "port": 8555,
+      "port": 8557,
       "protocol": "reflex",
       "tag": "reflex-in",
       "settings": {
@@ -21,15 +21,6 @@
               "policy": "mimic-http2-api"
             }
           }
-        ],
-        "fallbacks": [
-          {
-            "name": "echo",
-            "alpn": "",
-            "path": "",
-            "type": "http",
-            "dest": "127.0.0.1:9996"
-          }
         ]
       }
     }
@@ -38,15 +29,17 @@
     {
       "protocol": "freedom",
       "tag": "direct",
-      "settings": {}
+      "settings": {
+        "domainStrategy": "UseIP"
+      }
     }
   ],
   "routing": {
     "rules": [
       {
         "type": "field",
-        "outboundTag": "direct",
-        "ip": ["0.0.0.0/0"]
+        "inboundTag": ["reflex-in"],
+        "outboundTag": "direct"
       }
     ]
   }

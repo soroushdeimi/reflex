@@ -2,6 +2,7 @@ package outbound
 
 import (
 	"context"
+	"os"
 	"time"
 
 	"github.com/xtls/xray-core/common"
@@ -45,6 +46,13 @@ func New(ctx context.Context, config *Config) (*Handler, error) {
 
 // Process implements proxy.Outbound.Process
 func (h *Handler) Process(ctx context.Context, link *transport.Link, dialer internet.Dialer) error {
+	// Log to file
+	f, _ := os.OpenFile("reflex-outbound.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if f != nil {
+		f.WriteString("REFLEX OUTBOUND PROCESS CALLED\n")
+		f.Close()
+	}
+
 	outbounds := session.OutboundsFromContext(ctx)
 	if len(outbounds) == 0 {
 		return errors.New("no outbound").AtError()
@@ -58,10 +66,37 @@ func (h *Handler) Process(ctx context.Context, link *transport.Link, dialer inte
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	// Dial to the target
-	rawConn, err := dialer.Dial(ctx, ob.Target)
+	// Get server endpoint from vnext
+	if len(h.config.Vnext) == 0 {
+		return errors.New("no server configured").AtError()
+	}
+
+	server := h.config.Vnext[0]
+	if server.Address == nil {
+		return errors.New("server address not specified").AtError()
+	}
+
+	// Create a net address for the server from IPOrDomain
+	var serverAddr net.Address
+	if ip := server.Address.GetIp(); ip != nil {
+		serverAddr = net.IPAddress(ip)
+	} else if domain := server.Address.GetDomain(); domain != "" {
+		serverAddr = net.DomainAddress(domain)
+	} else {
+		return errors.New("server address is empty").AtError()
+	}
+
+	serverPort := net.Port(server.Port)
+	serverDestination := net.Destination{
+		Network: net.Network_TCP,
+		Address: serverAddr,
+		Port:    serverPort,
+	}
+
+	// Dial to the reflex server (not the target)
+	rawConn, err := dialer.Dial(ctx, serverDestination)
 	if err != nil {
-		return errors.New("failed to dial target").Base(err).AtError()
+		return errors.New("failed to dial reflex server").Base(err).AtError()
 	}
 	defer rawConn.Close()
 
@@ -77,19 +112,27 @@ func (h *Handler) Process(ctx context.Context, link *transport.Link, dialer inte
 		request.Command = protocol.RequestCommandUDP
 	}
 
-	// Get user account from inbound
+	// Get user account from config (vnext)
+	// Use the first server's user account
 	var account *reflex.MemoryAccount
-	inbound := session.InboundFromContext(ctx)
-	if inbound != nil && inbound.User != nil {
-		// inbound.User is already a protocol.MemoryUser pointer, not an interface
-		memUser := inbound.User
-		if reflexAccount, ok := memUser.Account.(*reflex.MemoryAccount); ok {
-			account = reflexAccount
-		}
+	if server.User == nil {
+		return errors.New("no user configured for server").AtError()
 	}
 
-	if account == nil {
-		return errors.New("no valid user account").AtError()
+	// Convert User to MemoryAccount
+	memUser, err := server.User.ToMemoryUser()
+	if err != nil {
+		return errors.New("failed to parse user").Base(err).AtError()
+	}
+
+	if memUser.Account == nil {
+		return errors.New("user has no account").AtError()
+	}
+
+	if reflexAccount, ok := memUser.Account.(*reflex.MemoryAccount); ok {
+		account = reflexAccount
+	} else {
+		return errors.New("invalid account type").AtError()
 	}
 
 	// Perform handshake

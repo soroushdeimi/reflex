@@ -6,13 +6,19 @@
   },
   "inbounds": [
     {
-      "port": 10002,
+      "port": 10003,
       "protocol": "socks",
       "tag": "socks-in",
       "settings": {
         "udp": false,
         "auth": "noauth"
       }
+    },
+    {
+      "port": 8888,
+      "protocol": "http",
+      "tag": "http-in",
+      "settings": {}
     }
   ],
   "outbounds": [
@@ -23,7 +29,7 @@
         "vnext": [
           {
             "address": "127.0.0.1",
-            "port": 8555,
+            "port": 8557,
             "user": {
               "id": "b831381d-6324-4d53-ad4f-8cda48b30811",
               "level": 1,

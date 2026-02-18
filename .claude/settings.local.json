@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(wmic process where \"name=''xray.exe''\" delete /nointeractive)",
+      "Bash(netstat:*)",
+      "Read(//i/dianababaei/reflex/reflex/**)",
+      "Bash(xargs:*)",
+      "Bash(timeout 10 curl:*)",
+      "Bash(timeout 3 curl:*)",
+      "Bash(timeout:*)",
+      "Bash(kill:*)"
+    ]
+  }
+}

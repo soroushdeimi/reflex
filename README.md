@@ -1,57 +1,111 @@
-# پروژه Reflex -
+# 📡 پروژه Reflex - نمای کلی
 
-## چیه این پروژه؟
+یک پروتکل پراکسی هوشمند برای **Xray-Core** که ترافیک پراکسی رو غیرقابل تشخیص می‌کنه.
 
-پروژه Reflex یک پروتکل پراکسی جدید برای Xray-Core هست که سعی می‌کنه مشکلات پروتکل‌های قبلی مثل VMess و VLESS رو حل کنه. هدف اصلی اینه که ترافیک پراکسی رو غیرقابل تشخیص کنیم - یعنی سانسورچی نتونه بفهمه که این ترافیک پراکسی هست.
+## چی بلد می‌کنه؟
 
-## چیکار باید بکنید؟
+✅ **رمزنگاری قوی**: ChaCha20-Poly1305
+✅ **احراز هویت ایمن**: X25519 ECDH
+✅ **مخفی‌سازی ترافیک**: Traffic Morphing (مثل YouTube, Zoom, HTTP/2)
+✅ **ساختار فریم‌پایه**: پروتکل منظم و انعطاف‌پذیر
+✅ **Fallback وب**: به نظر سرور عادی می‌آید
 
-شما باید پروتکل Reflex رو در Xray-Core پیاده‌سازی کنید. این کار در چند مرحله انجام می‌شه:
-
-1. **مرحله 1**: ساختار اولیه پروتکل (پکیج، config، handler اولیه)
-2. **مرحله 2**: پیاده‌سازی handshake و احراز هویت
-3. **مرحله 3**: رمزنگاری و پردازش بسته‌ها
-4. **مرحله 4**: fallback به وب‌سرور (مثل Trojan)
-5. **مرحله 5**: قابلیت‌های پیشرفته (Traffic Morphing و ...)
-
-## چطوری شروع کنید؟
-
-1. اول [راه‌اندازی محیط](docs/setup.md) رو بخونید و Go و Git رو نصب کنید
-2. ریپو Reflex رو کلون کنید (که شامل Xray-Core هست) و بیلد اولیه رو تست کنید
-3. [پروتکل Reflex](docs/protocol.md) رو بخونید تا بفهمید چطوری کار می‌کنه
-4. مرحله به مرحله پیش برید: [Step 1](docs/step1-basic.md) → [Step 2](docs/step2-handshake.md) → [Step 3](docs/step3-encryption.md) → [Step 4](docs/step4-fallback.md) → [Step 5](docs/step5-advanced.md)
-5. [تست کنید](docs/testing.md) که همه چیز درست کار می‌کنه
-6. [تحویل بدید](docs/submission.md) - یک برنچ بسازید و PR بزنید
-
-## نمره‌دهی (120 نمره)
-
-### پیاده‌سازی (80 نمره)
-- **Step 1 - Basic Structure**: 10 نمره
-- **Step 2 - Handshake**: 15 نمره
-- **Step 3 - Encryption**: 15 نمره
-- **Step 4 - Fallback**: 15 نمره
-- **Step 5 - Advanced**: 20 نمره (15 نمره اجباری + 5 نمره امتیازی)
-
-### تست‌ها (20 نمره)
-- تست‌های واحد: 10 نمره
-- تست‌های یکپارچگی: 10 نمره
-
-### کد و مستندات (20 نمره)
-- کیفیت کد و خوانایی: 10 نمره
-- مستندات و کامنت‌ها: 10 نمره
-
-جزئیات بیشتر در [فایل تحویل](docs/submission.md) هست.
-
-## منابع
-
-- [Xray-Core Repository](https://github.com/XTLS/Xray-core)
-- [Go Documentation](https://go.dev/doc/)
-- [Protocol Specification](docs/protocol.md)
-
-## سوال دارید؟
-
-اگر مشکلی پیش اومد یا سوالی دارید، اول [FAQ](docs/FAQ.md) رو چک کنید. اگر جوابتون رو پیدا نکردید، از من بپرسید
 ---
 
-**موفق باشید!** 
+## شروع سریع (5 دقیقه)
 
+### ۱. نیازمندی‌ها
+```bash
+# Go 1.18+
+go version
+
+# Git
+git --version
+```
+
+### ۲. بیلد
+```bash
+cd xray-core
+go build -o xray ./main/
+```
+
+### ۳. تست
+```bash
+# درایو اول (echo server)
+go run echo-server.go
+
+# درایو دوم (سرور)
+./xray-core/xray -c reflex-server-test.json
+
+# درایو سوم (کلاینت)
+./xray-core/xray -c reflex-client-test.json
+
+# درایو چهارم (مرورگر)
+# Firefox: SOCKS5 = 127.0.0.1:10002
+# Navigate to: http://127.0.0.1:9996
+```
+
+### ۴. تأیید
+- [ ] Firefox وصل شد ✅
+- [ ] Terminal 1: `New connection from 127.0.0.1:XXXXX` دید ✅
+- [ ] بسته‌ها رمزنگاری شدند ✅
+
+---
+
+## مراحل پیاده‌سازی
+
+| مرحله | توضیح | کد |
+|------|-------|-----|
+| **1** | ساختار اولیه | `xray-core/proxy/reflex/` |
+| **2** | احراز هویت & Handshake | `encoding/handshake.go` |
+| **3** | رمزنگاری & فریم‌ها | `encoding/frame.go` |
+| **4** | Fallback | `inbound/inbound.go` |
+| **5** | Traffic Morphing | `encoding/morphing.go` |
+
+---
+
+## پروفایل‌های Morphing
+
+```json
+{
+  "clients": [
+    {
+      "id": "user-uuid-1",
+      "policy": "youtube"      // ← بزرگ = دانلود، استریم
+    },
+    {
+      "id": "user-uuid-2",
+      "policy": "zoom"         // ← کوچک = تماس، صدا
+    },
+    {
+      "id": "user-uuid-3",
+      "policy": "http2-api"    // ← مختلط = مرور، API (پیش‌فرض)
+    }
+  ]
+}
+```
+
+---
+
+## سوالات متداول
+
+**Q: خطای `proto.Message`؟**
+A: فایل‌های `.pb.go` را generate کنید: `protoc xray-core/proxy/reflex/*.proto`
+
+**Q: Morphing کار نمی‌کنه؟**
+A: Wireshark چک کنید: `tcp.dstport == 8555` - بسته‌ها مختلط باید باشند.
+
+**Q: نمی‌تونم وصل شم؟**
+A: UUID کلاینت و سرور یکی هست؟ Log فایل‌ها چک کنید.
+
+---
+
+## مراجع
+
+📘 **جزئیات پیاده‌سازی**: [فایل مراحل](docs/STEPS_FA.md)
+🚀 **دستورات اجرا**: [فایل اجرا](docs/RUN_GUIDE_FA.md)
+🔐 **پروتکل**: [مشخصات](docs/protocol.md)
+
+---
+
+**موفق باشید!** 🎯
