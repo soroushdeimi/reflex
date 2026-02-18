@@ -2,10 +2,12 @@ package inbound
 
 import (
 	"context"
+	"errors"
 
 	"github.com/xtls/xray-core/common"
 	"github.com/xtls/xray-core/common/net"
 	"github.com/xtls/xray-core/common/protocol"
+	"github.com/xtls/xray-core/common/uuid"
 	"github.com/xtls/xray-core/features/routing"
 	"github.com/xtls/xray-core/proxy"
 	"github.com/xtls/xray-core/proxy/reflex"
@@ -49,8 +51,22 @@ func (h *Handler) Network() []net.Network {
 }
 
 func (h *Handler) Process(ctx context.Context, network net.Network, conn stat.Connection, dispatcher routing.Dispatcher) error {
-	// اینجا بعداً منطق اصلی رو اضافه می‌کنیم
 	return nil
+}
+
+func (h *Handler) authenticateUser(userID [16]byte) (*protocol.MemoryUser, error) {
+	userUUID, err := uuid.ParseBytes(userID[:])
+	if err != nil {
+		return nil, errors.New("invalid user ID format")
+	}
+	userIDStr := userUUID.String()
+
+	for _, user := range h.clients {
+		if user.Account.(*MemoryAccount).Id == userIDStr {
+			return user, nil
+		}
+	}
+	return nil, errors.New("user not found")
 }
 
 func init() {
