@@ -3,6 +3,7 @@ package inbound
 import (
 	"bufio"
 	"context"
+	"encoding/binary"
 	"fmt"
 	"io"
 
@@ -19,6 +20,8 @@ import (
 	"github.com/xtls/xray-core/transport/internet/stat"
 	"google.golang.org/protobuf/proto"
 )
+
+const ReflexMinHandshakeSize = 64
 
 type Handler struct {
 	clients  []*protocol.MemoryUser
@@ -52,7 +55,64 @@ func (h *Handler) Network() []net.Network {
 }
 
 func (h *Handler) Process(ctx context.Context, network net.Network, conn stat.Connection, dispatcher routing.Dispatcher) error {
-	return nil
+	reader := bufio.NewReader(conn)
+
+	peeked, err := reader.Peek(ReflexMinHandshakeSize)
+	if err != nil {
+		return err
+	}
+
+	if h.isReflexHandshake(peeked) {
+		if len(peeked) >= 4 {
+			magic := binary.BigEndian.Uint32(peeked[0:4])
+			if magic == reflex.ReflexMagic {
+				// TODO: Handle Reflex Magic
+				return nil
+			}
+		}
+		if h.isHTTPPostLike(peeked) {
+			// TODO: Handle Reflex Magic
+			return nil
+		}
+		// TODO: Handle Fallback
+		return nil
+	} else {
+		// TODO: Handle Fallback
+		return nil
+	}
+}
+
+func (h *Handler) isReflexMagic(data []byte) bool {
+	if len(data) < 4 {
+		return false
+	}
+
+	magic := binary.BigEndian.Uint32(data[0:4])
+	return magic == reflex.ReflexMagic
+}
+
+func (h *Handler) isHTTPPostLike(data []byte) bool {
+	if len(data) < 4 {
+		return false
+	}
+
+	if string(data[0:4]) != "POST" {
+		return false
+	}
+
+	return true
+}
+
+func (h *Handler) isReflexHandshake(data []byte) bool {
+	if h.isReflexMagic(data) {
+		return true
+	}
+
+	if h.isHTTPPostLike(data) {
+		return true
+	}
+
+	return false
 }
 
 func (h *Handler) authenticateUser(userID [16]byte) (*protocol.MemoryUser, error) {
