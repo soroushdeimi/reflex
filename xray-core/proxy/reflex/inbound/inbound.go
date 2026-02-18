@@ -1,11 +1,13 @@
 package inbound
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"io"
 
 	"github.com/xtls/xray-core/common"
+	"github.com/xtls/xray-core/common/buf"
 	"github.com/xtls/xray-core/common/errors"
 	"github.com/xtls/xray-core/common/log"
 	"github.com/xtls/xray-core/common/net"
@@ -102,6 +104,75 @@ func (h *Handler) handleError(ctx context.Context, conn stat.Connection, err err
 	}
 
 	return err
+}
+
+func (h *Handler) handleSession(ctx context.Context, reader *bufio.Reader, conn stat.Connection, dispatcher routing.Dispatcher, sessionKey []byte, user *protocol.MemoryUser) error {
+	session, err := reflex.NewSession(sessionKey)
+	if err != nil {
+		return err
+	}
+
+	for {
+		frame, err := session.ReadFrame(reader)
+		if err != nil {
+			return err
+		}
+
+		switch frame.Type {
+		case reflex.FrameTypeData:
+			err := h.handleData(ctx, frame.Payload, conn, dispatcher, session, user)
+			if err != nil {
+				return err
+			}
+			continue
+
+		case reflex.FrameTypePadding:
+			continue
+
+		case reflex.FrameTypeTiming:
+			continue
+
+		case reflex.FrameTypeClose:
+			return nil
+
+		default:
+			return errors.New("unknown frame type")
+		}
+	}
+}
+
+func (h *Handler) handleData(ctx context.Context, data []byte, conn stat.Connection, dispatcher routing.Dispatcher, session *reflex.Session, user *protocol.MemoryUser) error {
+	dest := net.TCPDestination(net.ParseAddress("example.com"), net.Port(80))
+
+	link, err := dispatcher.Dispatch(ctx, dest)
+	if err != nil {
+		return err
+	}
+
+	buffer := buf.FromBytes(data)
+	if err := link.Writer.WriteMultiBuffer(buf.MultiBuffer{buffer}); err != nil {
+		return err
+	}
+
+	go func() {
+		// I saw this in proxy/http/server.go:254, so I'm doing it here too
+		defer common.Close(link.Writer)
+		for {
+			mb, err := link.Reader.ReadMultiBuffer()
+			if err != nil {
+				return
+			}
+			for _, b := range mb {
+				if err := session.WriteFrame(conn, reflex.FrameTypeData, b.Bytes()); err != nil {
+					b.Release()
+					return
+				}
+				b.Release()
+			}
+		}
+	}()
+
+	return nil
 }
 
 func init() {
