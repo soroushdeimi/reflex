@@ -66,19 +66,15 @@ func (h *Handler) Process(ctx context.Context, network net.Network, conn stat.Co
 		if len(peeked) >= 4 {
 			magic := binary.BigEndian.Uint32(peeked[0:4])
 			if magic == reflex.ReflexMagic {
-				// TODO: Handle Reflex Magic
-				return nil
+				return h.handleReflexMagic(reader, conn, dispatcher, ctx)
 			}
 		}
 		if h.isHTTPPostLike(peeked) {
-			// TODO: Handle Reflex Magic
-			return nil
+			return h.handleReflexHTTP(reader, conn, dispatcher, ctx)
 		}
-		// TODO: Handle Fallback
-		return nil
+		return h.handleFallback(ctx, reader, conn)
 	} else {
-		// TODO: Handle Fallback
-		return nil
+		return h.handleFallback(ctx, reader, conn)
 	}
 }
 
@@ -113,6 +109,88 @@ func (h *Handler) isReflexHandshake(data []byte) bool {
 	}
 
 	return false
+}
+
+func (h *Handler) handleReflexMagic(reader *bufio.Reader, conn stat.Connection, dispatcher routing.Dispatcher, ctx context.Context) error {
+	magic := make([]byte, 4)
+	if _, err := io.ReadFull(reader, magic); err != nil {
+		return err
+	}
+
+	var packet reflex.ClientHandshakePacket
+	copy(packet.Magic[:], magic)
+
+	if _, err := io.ReadFull(reader, packet.Handshake.PublicKey[:]); err != nil {
+		return err
+	}
+
+	if _, err := io.ReadFull(reader, packet.Handshake.UserID[:]); err != nil {
+		return err
+	}
+
+	policyReqLenBytes := make([]byte, 2)
+	if _, err := io.ReadFull(reader, policyReqLenBytes); err != nil {
+		return err
+	}
+	policyReqLen := binary.BigEndian.Uint16(policyReqLenBytes)
+
+	packet.Handshake.PolicyReq = make([]byte, policyReqLen)
+	if policyReqLen > 0 {
+		if _, err := io.ReadFull(reader, packet.Handshake.PolicyReq); err != nil {
+			return err
+		}
+	}
+
+	timestampBytes := make([]byte, 8)
+	if _, err := io.ReadFull(reader, timestampBytes); err != nil {
+		return err
+	}
+	packet.Handshake.Timestamp = int64(binary.BigEndian.Uint64(timestampBytes))
+
+	if _, err := io.ReadFull(reader, packet.Handshake.Nonce[:]); err != nil {
+		return err
+	}
+
+	return h.processHandshake(reader, conn, dispatcher, ctx, packet.Handshake)
+}
+
+func (h *Handler) handleReflexHTTP(reader *bufio.Reader, conn stat.Connection, dispatcher routing.Dispatcher, ctx context.Context) error {
+	var clientHS reflex.ClientHandshake
+	return h.processHandshake(reader, conn, dispatcher, ctx, clientHS)
+}
+
+func (h *Handler) processHandshake(reader *bufio.Reader, conn stat.Connection, dispatcher routing.Dispatcher, ctx context.Context, clientHS reflex.ClientHandshake) error {
+	serverPrivateKey, serverPublicKey, err := reflex.GenerateKeyPair()
+	if err != nil {
+		return h.handleError(ctx, conn, err, 500)
+	}
+
+	sharedKey := reflex.DeriveSharedKey(serverPrivateKey, clientHS.PublicKey)
+	sessionKey := reflex.DeriveSessionKey(sharedKey, []byte("reflex-session"))
+
+	user, err := h.authenticateUser(clientHS.UserID)
+	if err != nil {
+		return h.handleFallback(ctx, reader, conn)
+	}
+
+	_ = reflex.ServerHandshake{
+		PublicKey:   serverPublicKey,
+		PolicyGrant: []byte{},
+	}
+
+	response := "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n{\"status\":\"ok\"}"
+	if _, err := conn.Write([]byte(response)); err != nil {
+		return err
+	}
+
+	return h.handleSession(ctx, reader, conn, dispatcher, sessionKey, user)
+}
+
+func (h *Handler) handleFallback(ctx context.Context, reader *bufio.Reader, conn stat.Connection) error {
+	if h.fallback == nil {
+		return errors.New("no fallback configured")
+	}
+	return nil
 }
 
 func (h *Handler) authenticateUser(userID [16]byte) (*protocol.MemoryUser, error) {
