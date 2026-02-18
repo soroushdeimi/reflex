@@ -4,6 +4,7 @@ import (
 	"crypto/cipher"
 	"encoding/binary"
 	"io"
+	"sync"
 
 	"golang.org/x/crypto/chacha20poly1305"
 )
@@ -13,6 +14,35 @@ type Session struct {
 	aead       cipher.AEAD
 	readNonce  uint64
 	writeNonce uint64
+	nonceCache *NonceCache
+}
+
+type NonceCache struct {
+	seen map[uint64]bool
+	mu   sync.Mutex
+}
+
+func NewNonceCache() *NonceCache {
+	return &NonceCache{
+		seen: make(map[uint64]bool),
+	}
+}
+
+func (nc *NonceCache) Check(nonce uint64) bool {
+	nc.mu.Lock()
+	defer nc.mu.Unlock()
+
+	if nc.seen[nonce] {
+		return false
+	}
+
+	nc.seen[nonce] = true
+
+	if len(nc.seen) > 1000 {
+		nc.seen = make(map[uint64]bool)
+	}
+
+	return true
 }
 
 func NewSession(sessionKey []byte) (*Session, error) {
@@ -26,6 +56,7 @@ func NewSession(sessionKey []byte) (*Session, error) {
 		aead:       aead,
 		readNonce:  0,
 		writeNonce: 0,
+		nonceCache: NewNonceCache(),
 	}, nil
 }
 
@@ -43,9 +74,14 @@ func (s *Session) ReadFrame(reader io.Reader) (*Frame, error) {
 		return nil, err
 	}
 
+	nonceValue := s.readNonce
 	nonce := make([]byte, 12)
-	binary.BigEndian.PutUint64(nonce[4:], s.readNonce)
+	binary.BigEndian.PutUint64(nonce[4:], nonceValue)
 	s.readNonce++
+
+	if !s.nonceCache.Check(nonceValue) {
+		return nil, io.ErrUnexpectedEOF
+	}
 
 	payload, err := s.aead.Open(nil, nonce, encryptedPayload, nil)
 	if err != nil {
