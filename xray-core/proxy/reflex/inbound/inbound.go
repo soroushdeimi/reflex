@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	stdnet "net"
+	"time"
 
 	"github.com/xtls/xray-core/common"
 	"github.com/xtls/xray-core/common/buf"
@@ -279,6 +280,21 @@ func (h *Handler) handleSession(ctx context.Context, reader *bufio.Reader, conn 
 		return err
 	}
 
+	profile := &reflex.TrafficProfile{
+		Name: "YouTube",
+		PacketSizes: []reflex.PacketSizeDist{
+			{Size: 1400, Weight: 0.4},
+			{Size: 1200, Weight: 0.3},
+			{Size: 1000, Weight: 0.2},
+			{Size: 800, Weight: 0.1},
+		},
+		Delays: []reflex.DelayDist{
+			{Delay: 10 * time.Millisecond, Weight: 0.5},
+			{Delay: 20 * time.Millisecond, Weight: 0.3},
+			{Delay: 30 * time.Millisecond, Weight: 0.2},
+		},
+	}
+
 	for {
 		frame, err := session.ReadFrame(reader)
 		if err != nil {
@@ -294,9 +310,11 @@ func (h *Handler) handleSession(ctx context.Context, reader *bufio.Reader, conn 
 			continue
 
 		case reflex.FrameTypePadding:
+			session.HandleControlFrame(frame, profile)
 			continue
 
 		case reflex.FrameTypeTiming:
+			session.HandleControlFrame(frame, profile)
 			continue
 
 		case reflex.FrameTypeClose:
