@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+package xray.proxy.reflex;
+
+option csharp_namespace = "Xray.Proxy.Reflex";
+option go_package = "github.com/xtls/xray-core/proxy/reflex";
+option java_package = "com.xray.proxy.reflex";
+option java_multiple_files = true;
+
+message User {
+  string id = 1;
+  string policy = 2;
+}
+
+message Account {
+  string id = 1;
+}
+
+message Fallback {
+  uint32 dest = 1;
+  string path = 2;
+}
+
+message InboundConfig {
+  repeated User clients = 1;
+  Fallback fallback = 2;
+  bool enable_traffic_morphing = 3;
+  string default_profile = 4;
+}
+
+message OutboundConfig {
+  string address = 1;
+  uint32 port = 2;
+  string id = 3;
+}
