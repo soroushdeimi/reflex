@@ -2,6 +2,7 @@ package inbound
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/binary"
 	"io"
@@ -9,10 +10,12 @@ import (
 	"time"
 
 	"github.com/xtls/xray-core/common"
+	"github.com/xtls/xray-core/common/buf"
 	"github.com/xtls/xray-core/common/errors"
 	"github.com/xtls/xray-core/common/net"
 	"github.com/xtls/xray-core/common/protocol"
 	"github.com/xtls/xray-core/common/session"
+	"github.com/xtls/xray-core/common/task"
 	"github.com/xtls/xray-core/core"
 	"github.com/xtls/xray-core/features/policy"
 	"github.com/xtls/xray-core/features/routing"
@@ -48,7 +51,7 @@ func NewValidator() *Validator {
 	}
 }
 
-// Add adds a user
+// Add adds a user to validator
 func (v *Validator) Add(user *protocol.MemoryUser) error {
 	v.Lock()
 	defer v.Unlock()
@@ -73,7 +76,7 @@ type MemoryAccount struct {
 	Policy string
 }
 
-// Equals compares accounts
+// Equals compares two accounts
 func (a *MemoryAccount) Equals(account protocol.Account) bool {
 	reflexAccount, ok := account.(*MemoryAccount)
 	if !ok {
@@ -97,7 +100,7 @@ func New(ctx context.Context, config *reflex.InboundConfig) (*Handler, error) {
 		config:        config,
 	}
 
-	// Add users
+	// Add users to validator
 	for _, user := range config.Clients {
 		u := &protocol.MemoryUser{
 			Email: user.Id,
@@ -111,7 +114,7 @@ func New(ctx context.Context, config *reflex.InboundConfig) (*Handler, error) {
 		}
 	}
 
-	// Setup fallback
+	// Setup fallback if configured
 	if config.Fallback != nil {
 		handler.fallback = &FallbackConfig{
 			Dest: config.Fallback.Dest,
@@ -162,13 +165,13 @@ func (h *Handler) handleReflexHandshake(ctx context.Context, reader *bufio.Reade
 		return newError("failed to read magic").Base(err)
 	}
 
-	// Read handshake data length (2 bytes)
+	// Read handshake data length
 	var dataLen uint16
 	if err := binary.Read(reader, binary.BigEndian, &dataLen); err != nil {
 		return newError("failed to read data length").Base(err)
 	}
 
-	if dataLen > 4096 { // Sanity check
+	if dataLen > 4096 {
 		return newError("handshake data too large: ", dataLen)
 	}
 
@@ -224,7 +227,7 @@ func (h *Handler) handleReflexHandshake(ctx context.Context, reader *bufio.Reade
 	serverHS := &reflex.ServerHandshake{
 		PublicKey:   serverPub,
 		Timestamp:   time.Now().Unix(),
-		PolicyGrant: []byte{}, // TODO: Implement policy grant
+		PolicyGrant: []byte{},
 	}
 
 	// Marshal server handshake
@@ -254,14 +257,113 @@ func (h *Handler) handleReflexHandshake(ctx context.Context, reader *bufio.Reade
 	inbound.Name = "reflex"
 	inbound.User = user
 
-	// Handle session (TODO: Step 3)
+	// Handle session
 	return h.handleSession(ctx, reader, conn, dispatcher, sessionKeys)
 }
 
-// handleSession handles established session
+// handleSession handles established session with encryption
 func (h *Handler) handleSession(ctx context.Context, reader *bufio.Reader, conn stat.Connection, dispatcher routing.Dispatcher, keys *reflex.SessionKeys) error {
-	// TODO: Step 3 - Implement data encryption/decryption
-	return newError("session handling not implemented yet")
+	// Create encrypted session
+	sess, err := reflex.NewServerSession(keys)
+	if err != nil {
+		return newError("failed to create session").Base(err)
+	}
+
+	// Read first frame to get destination
+	firstFrame, err := sess.ReadFrame(reader, true)
+	if err != nil {
+		return newError("failed to read first frame").Base(err)
+	}
+
+	if firstFrame.Type != reflex.FrameTypeData {
+		return newError("first frame must be data frame")
+	}
+
+	// Decode destination from payload
+	destReader := bytes.NewReader(firstFrame.Payload)
+	dest, err := reflex.DecodeDestination(destReader)
+	if err != nil {
+		return newError("failed to decode destination").Base(err)
+	}
+
+	// Dispatch connection
+	link, err := dispatcher.Dispatch(ctx, dest)
+	if err != nil {
+		return newError("failed to dispatch").Base(err)
+	}
+
+	// Calculate remaining data after destination
+	destBytesLen := len(firstFrame.Payload) - destReader.Len()
+	remaining := firstFrame.Payload[destBytesLen:]
+
+	// Send first data chunk if exists
+	if len(remaining) > 0 {
+		b := buf.FromBytes(remaining)
+		if err := link.Writer.WriteMultiBuffer(buf.MultiBuffer{b}); err != nil {
+			return newError("failed to write first chunk").Base(err)
+		}
+	}
+
+	// Start bidirectional forwarding
+	requestDone := func() error {
+		return h.handleUplink(reader, link.Writer, sess)
+	}
+
+	responseDone := func() error {
+		return h.handleDownlink(conn, link.Reader, sess)
+	}
+
+	if err := task.Run(ctx, requestDone, responseDone); err != nil {
+		return newError("connection closed").Base(err)
+	}
+
+	return nil
+}
+
+// handleUplink reads from client and writes to upstream
+func (h *Handler) handleUplink(reader *bufio.Reader, writer buf.Writer, sess *reflex.Session) error {
+	for {
+		frame, err := sess.ReadFrame(reader, true)
+		if err != nil {
+			return err
+		}
+
+		switch frame.Type {
+		case reflex.FrameTypeData:
+			b := buf.FromBytes(frame.Payload)
+			if err := writer.WriteMultiBuffer(buf.MultiBuffer{b}); err != nil {
+				return newError("failed to write uplink data").Base(err)
+			}
+
+		case reflex.FrameTypeClose:
+			return nil
+
+		case reflex.FrameTypePadding, reflex.FrameTypeTiming:
+			continue
+
+		default:
+			return newError("unknown frame type: ", frame.Type)
+		}
+	}
+}
+
+// handleDownlink reads from upstream and writes to client
+func (h *Handler) handleDownlink(conn stat.Connection, reader buf.Reader, sess *reflex.Session) error {
+	for {
+		mb, err := reader.ReadMultiBuffer()
+		if err != nil {
+			sess.WriteFrame(conn, reflex.FrameTypeClose, nil, true)
+			return nil
+		}
+
+		for _, b := range mb {
+			if err := sess.WriteFrame(conn, reflex.FrameTypeData, b.Bytes(), true); err != nil {
+				b.Release()
+				return newError("failed to write downlink data").Base(err)
+			}
+			b.Release()
+		}
+	}
 }
 
 // handleFallback forwards connection to fallback destination
