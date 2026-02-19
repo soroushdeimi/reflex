@@ -19,7 +19,13 @@
 - رمزنگاری فریم‌ها با ChaCha20-Poly1305
 - مکانیزم Fallback به وب‌سرور
 - Traffic Morphing با ۳ پروفایل (YouTube, Zoom, HTTP/2 API)
-- تست‌های واحد و یکپارچگی  
+- 7 تست در xray-core/tests/ و تست‌های واحد در proxy/reflex/
+
+### Bonus:
+- ۳ پروفایل Morphing با توزیع اندازه بسته و تاخیر متفاوت
+- Random Nonce برای جلوگیری از replay attack
+- Poly1305 Authentication Tag برای tamper detection
+- Fallback که سرور را شبیه HTTP سرور عادی نشان می‌دهد
 
 ## نحوه اجرا
 
