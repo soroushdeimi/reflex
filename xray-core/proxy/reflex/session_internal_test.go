@@ -8,7 +8,7 @@ import (
 func TestSessionDataIntegrityWithPadding(t *testing.T) {
 	key := make([]byte, 32)
 	sess, _ := NewSession(key)
-	
+
 	originalData := []byte("secret payload")
 	buffer := new(bytes.Buffer)
 

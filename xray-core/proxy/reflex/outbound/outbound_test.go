@@ -60,7 +60,7 @@ func TestEncodeDest(t *testing.T) {
 
 func TestNewHandler(t *testing.T) {
 	ctx := context.Background()
-	
+
 	// Test valid config
 	config := &reflex.OutboundConfig{
 		Address: "127.0.0.1",

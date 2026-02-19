@@ -13,6 +13,7 @@ import (
 type FinalMockConn struct {
 	gonet.Conn
 }
+
 func (c *FinalMockConn) BytesRead() uint64        { return 0 }
 func (c *FinalMockConn) BytesWritten() uint64     { return 0 }
 func (c *FinalMockConn) HandshakeSeconds() uint64 { return 0 }
@@ -36,13 +37,13 @@ func TestFinalCoveragePush(t *testing.T) {
 	client, server := gonet.Pipe()
 	go func() {
 		// Send data that is NOT a Reflex magic number to trigger fallback
-		client.Write([]byte("GET / HTTP/1.1\r\n\r\n"))
-		client.Close()
+		_, _ =client.Write([]byte("GET / HTTP/1.1\r\n\r\n"))
+		_ = client.Close()
 	}()
 
 	mock := &FinalMockConn{Conn: server}
-	
-	// This will execute the fallback logic. Even if it errors, 
+
+	// This will execute the fallback logic. Even if it errors,
 	// it covers the 'if magic != ReflexMagic' branch.
-	handler.Process(context.Background(), net.Network_TCP, mock, nil)
+	_ = handler.Process(context.Background(), net.Network_TCP, mock, nil)
 }

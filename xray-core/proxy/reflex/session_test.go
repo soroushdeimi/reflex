@@ -33,7 +33,7 @@ func TestEncryption(t *testing.T) {
 	// 5. Test Writing (Encryption)
 	// We run this in a goroutine to prevent the pipe from blocking (deadlock)
 	go func() {
-		defer writer.Close()
+		defer func() { _ = writer.Close() }()
 		// WriteFrame handles the nonce and encryption internally
 		err := session.WriteFrame(writer, originalType, originalPayload)
 		if err != nil {
@@ -63,13 +63,13 @@ func TestEncryption(t *testing.T) {
 func TestReplayProtection(t *testing.T) {
 	// 1. Setup Session
 	key := make([]byte, 32)
-	rand.Read(key)
+	_, _ = rand.Read(key)
 	session, _ := NewSession(key)
 
 	// 2. Create a valid encrypted frame (Simulating a captured packet)
 	data := []byte("Sensitive Request")
 	buf := new(bytes.Buffer)
-	
+
 	// Encrypts with Nonce 0, then increments WriteNonce to 1
 	if err := session.WriteFrame(buf, FrameTypeData, data); err != nil {
 		t.Fatalf("Failed to write frame: %v", err)
@@ -101,7 +101,7 @@ func TestReplayProtection(t *testing.T) {
 
 func TestEmptyData(t *testing.T) {
 	key := make([]byte, 32)
-	rand.Read(key)
+	_, _ = rand.Read(key)
 	session, _ := NewSession(key)
 	buf := new(bytes.Buffer)
 
@@ -124,14 +124,14 @@ func TestEmptyData(t *testing.T) {
 
 func TestLargeData(t *testing.T) {
 	key := make([]byte, 32)
-	rand.Read(key)
+	_, _ =rand.Read(key)
 	session, _ := NewSession(key)
-	
+
 	// Create a large payload (e.g., 60KB)
 	// Max uint16 is 65535, so we test near the limit
-	largeSize := 60 * 1024 
+	largeSize := 60 * 1024
 	largeData := make([]byte, largeSize)
-	rand.Read(largeData)
+	_,_=rand.Read(largeData)
 
 	buf := new(bytes.Buffer)
 	if err := session.WriteFrame(buf, FrameTypeData, largeData); err != nil {
@@ -148,17 +148,18 @@ func TestLargeData(t *testing.T) {
 		t.Errorf("Size mismatch. Expected %d, got %d", largeSize, len(frame.Payload))
 	}
 }
+
 // --- Performance Benchmarks ---
 
 func BenchmarkEncryption(b *testing.B) {
 	// Setup
 	key := make([]byte, 32)
-	rand.Read(key)
+	_,_ = rand.Read(key)
 	session, _ := NewSession(key)
 
 	// Create a 4KB chunk of data
 	data := make([]byte, 4096)
-	rand.Read(data)
+	_,_=rand.Read(data)
 	buf := new(bytes.Buffer)
 	buf.Grow(5000) // Pre-allocate memory
 
@@ -175,13 +176,13 @@ func BenchmarkEncryption(b *testing.B) {
 func BenchmarkMorphingYouTube(b *testing.B) {
 	// Setup
 	key := make([]byte, 32)
-	rand.Read(key)
+	_,_=rand.Read(key)
 	session, _ := NewSession(key)
-	
+
 	data := make([]byte, 100) // Small data to trigger padding
 	buf := new(bytes.Buffer)
 	buf.Grow(2000)
-	
+
 	// We test the YouTube profile
 	profile := &YouTubeProfile
 

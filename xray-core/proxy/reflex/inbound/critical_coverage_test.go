@@ -2,10 +2,10 @@ package inbound
 
 import (
 	"context"
-	gonet "net"
-	"testing"
 	"github.com/xtls/xray-core/common/net"
 	"github.com/xtls/xray-core/proxy/reflex"
+	gonet "net"
+	"testing"
 )
 
 func TestCriticalErrorPaths(t *testing.T) {
@@ -19,23 +19,23 @@ func TestCriticalErrorPaths(t *testing.T) {
 	t.Run("ShortPublicKey", func(t *testing.T) {
 		client, server := gonet.Pipe()
 		go func() {
-			client.Write([]byte{0x52, 0x46, 0x58, 0x4C}) // Magic OK
-			client.Write(make([]byte, 10))             // ONLY 10 bytes (Needs 32)
-			client.Close()
+			_, _ = client.Write([]byte{0x52, 0x46, 0x58, 0x4C}) // Magic OK
+			_, _ = client.Write(make([]byte, 10))               // ONLY 10 bytes (Needs 32)
+			_ = client.Close()
 		}()
 		mock := &MockStatConn{Conn: server}
-		handler.Process(context.Background(), net.Network_TCP, mock, nil)
+		_ = handler.Process(context.Background(), net.Network_TCP, mock, nil)
 	})
 
 	// --- 2. Test: Fallback Detection (HTTP GET coverage) ---
 	t.Run("HTTPGetFallback", func(t *testing.T) {
 		client, server := gonet.Pipe()
 		go func() {
-			client.Write([]byte("GET /index.html HTTP/1.1\r\nHost: example.com\r\n\r\n"))
-			client.Close()
+			_, _ = client.Write([]byte("GET /index.html HTTP/1.1\r\nHost: example.com\r\n\r\n"))
+			_ = client.Close()
 		}()
 		mock := &MockStatConn{Conn: server}
-		handler.Process(context.Background(), net.Network_TCP, mock, nil)
+		_ = handler.Process(context.Background(), net.Network_TCP, mock, nil)
 	})
 
 	// --- 3. Test: authenticateUserBytes (Unknown User) ---

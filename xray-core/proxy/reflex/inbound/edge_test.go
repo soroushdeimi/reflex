@@ -2,11 +2,11 @@ package inbound
 
 import (
 	"context"
+	"github.com/xtls/xray-core/common/net"
+	"github.com/xtls/xray-core/proxy/reflex"
 	"io"
 	gonet "net"
 	"testing"
-	"github.com/xtls/xray-core/common/net"
-	"github.com/xtls/xray-core/proxy/reflex"
 )
 
 // Reference: testing.md "Test Edge Cases"
@@ -16,10 +16,10 @@ func TestClosedConnection(t *testing.T) {
 	// Setup a session
 	key := make([]byte, 32)
 	session, _ := reflex.NewSession(key)
-	
+
 	conn, _ := gonet.Pipe()
-	conn.Close() // Close immediately
-	
+	_ = conn.Close() // Close immediately
+
 	// Write should fail
 	err := session.WriteFrame(conn, reflex.FrameTypeData, []byte("test"))
 	if err == nil {
@@ -36,17 +36,17 @@ func TestIncompleteHandshake(t *testing.T) {
 	handler := h.(*Handler)
 
 	client, server := gonet.Pipe()
-	
+
 	go func() {
 		// Send just the Magic Bytes, then close
-		client.Write([]byte{0x52, 0x46, 0x58, 0x4C}) 
+		_ , _ = client.Write([]byte{0x52, 0x46, 0x58, 0x4C})
 		// Missing Public Key, UserID, etc.
-		client.Close()
+		_ = client.Close()
 	}()
 
 	mock := &MockStatConn{Conn: server}
 	err := handler.Process(context.Background(), net.Network_TCP, mock, nil)
-	
+
 	// Should fail cleanly, not panic
 	if err == nil {
 		t.Error("Should return error for incomplete handshake")
@@ -62,13 +62,13 @@ func TestConnectionReset(t *testing.T) {
 	// Start reading in background
 	go func() {
 		buf := make([]byte, 1024)
-		server.Read(buf)
-		server.Close() // Close mid-transfer
+		_ , _ = server.Read(buf)
+		_ = server.Close() // Close mid-transfer
 	}()
 
 	// Write data
 	err := session.WriteFrame(client, reflex.FrameTypeData, []byte("test data"))
-	// Depending on timing, this might succeed (buffered) or fail. 
+	// Depending on timing, this might succeed (buffered) or fail.
 	// The important part is it doesn't panic.
 	if err != nil {
 		t.Log("Write failed as expected (or succeeded before close)")
@@ -79,13 +79,13 @@ func TestConnectionReset(t *testing.T) {
 func TestOversizedPayload(t *testing.T) {
 	key := make([]byte, 32)
 	session, _ := reflex.NewSession(key)
-	
+
 	// Create dummy writer that discards data
 	writer := io.Discard
-	
+
 	// Huge data (10MB)
 	hugeData := make([]byte, 10*1024*1024)
-	
+
 	// Should split or handle it
 	err := session.WriteFrame(writer, reflex.FrameTypeData, hugeData)
 	if err != nil {
@@ -104,15 +104,15 @@ func TestInvalidHandshake(t *testing.T) {
 	handler := h.(*Handler)
 
 	client, server := gonet.Pipe()
-	
+
 	go func() {
-		client.Write([]byte("INVALID DATA STREAM"))
-		client.Close()
+		_, _ = client.Write([]byte("INVALID DATA STREAM"))
+		_ = client.Close()
 	}()
 
 	mock := &MockStatConn{Conn: server}
 	err := handler.Process(context.Background(), net.Network_TCP, mock, nil)
-	
+
 	if err == nil {
 		t.Error("Should reject invalid handshake data")
 	}

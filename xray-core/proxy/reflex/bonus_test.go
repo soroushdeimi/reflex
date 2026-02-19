@@ -10,7 +10,7 @@ import (
 func TestDynamicProfileSwitching(t *testing.T) {
 	// 1. Setup
 	key := make([]byte, 32)
-	rand.Read(key)
+	_, _ = rand.Read(key) 
 	session, _ := NewSession(key)
 	buf := new(bytes.Buffer)
 
@@ -20,8 +20,8 @@ func TestDynamicProfileSwitching(t *testing.T) {
 	// 3. Phase 1: Should be Profile 0 (YouTube - Large Packets ~1400)
 	data := []byte("test data")
 	t.Log("Phase 1: Sending packet (Expect YouTube profile)...")
-	session.WriteFrameWithDynamicMorphing(buf, FrameTypeData, data, morpher)
-	
+	_ = session.WriteFrameWithDynamicMorphing(buf, FrameTypeData, data, morpher)
+
 	size1 := buf.Len()
 	t.Logf("Packet 1 Size: %d", size1)
 
@@ -31,8 +31,8 @@ func TestDynamicProfileSwitching(t *testing.T) {
 	// 5. Phase 2: Should be Profile 1 (Zoom - Smaller Packets ~500-700)
 	buf.Reset()
 	t.Log("Phase 2: Sending packet after timeout (Expect Zoom profile)...")
-	session.WriteFrameWithDynamicMorphing(buf, FrameTypeData, data, morpher)
-	
+	_=session.WriteFrameWithDynamicMorphing(buf , FrameTypeData, data, morpher)
+
 	size2 := buf.Len()
 	t.Logf("Packet 2 Size: %d", size2)
 

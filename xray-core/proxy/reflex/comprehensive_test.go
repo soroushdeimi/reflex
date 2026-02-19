@@ -5,7 +5,6 @@ import (
 	"net"
 	"testing"
 	"time"
-
 )
 
 func TestDestinationParser(t *testing.T) {
@@ -39,7 +38,7 @@ func TestControlFrames(t *testing.T) {
 	_ = sess.SendPaddingControl(buf, 1200)
 	frame, _ := sess.ReadFrame(buf)
 	sess.HandleControlFrame(frame, profile)
-	
+
 	// 2. Test Timing Control
 	buf.Reset()
 	_ = sess.SendTimingControl(buf, 50*time.Millisecond)

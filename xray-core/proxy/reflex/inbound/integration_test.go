@@ -29,7 +29,7 @@ func TestIntegrationHandshake(t *testing.T) {
 
 	// 2. Create Pipe
 	clientConn, serverConn := net.Pipe()
-	
+
 	// Use a WaitGroup to ensure the client goroutine finishes before the test exits
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -39,14 +39,14 @@ func TestIntegrationHandshake(t *testing.T) {
 	go func() {
 		defer close(errChan)
 		reader := bufio.NewReader(serverConn)
-		
+
 		// FIX: Consume the 4 magic bytes before calling ProcessHandshake
 		magicHeader := make([]byte, 4)
 		if _, err := io.ReadFull(reader, magicHeader); err != nil {
 			errChan <- err
 			return
 		}
-		
+
 		_, err := handler.ProcessHandshake(serverConn, reader)
 		errChan <- err
 	}()

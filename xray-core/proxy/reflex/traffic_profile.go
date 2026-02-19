@@ -65,7 +65,7 @@ func (p *TrafficProfile) GetPacketSize() int {
 
 	if p.nextPacketSize > 0 {
 		size := p.nextPacketSize
-		p.nextPacketSize = 0 
+		p.nextPacketSize = 0
 		return size
 	}
 
@@ -89,7 +89,7 @@ func (p *TrafficProfile) GetDelay() time.Duration {
 
 	if p.nextDelay > 0 {
 		delay := p.nextDelay
-		p.nextDelay = 0 
+		p.nextDelay = 0
 		return delay
 	}
 
@@ -148,4 +148,3 @@ func (dm *DynamicMorpher) GetCurrentProfile() *TrafficProfile {
 
 	return dm.profiles[dm.currentIndex]
 }
-

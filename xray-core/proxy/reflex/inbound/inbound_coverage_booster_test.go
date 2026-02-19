@@ -2,8 +2,8 @@ package inbound
 
 import (
 	"context"
-	"testing"
 	"github.com/xtls/xray-core/proxy/reflex"
+	"testing"
 )
 
 func TestFinalCoverageBoost(t *testing.T) {
@@ -11,7 +11,7 @@ func TestFinalCoverageBoost(t *testing.T) {
 	// These boilerplate methods in MemoryAccount are easy coverage points.
 	acc1 := &MemoryAccount{Id: "29525c56-6556-43f1-8b2b-09b673627038"}
 	acc2 := &MemoryAccount{Id: "00000000-0000-0000-0000-000000000000"}
-	
+
 	_ = acc1.Equals(acc2) // Tests inequality branch
 	_ = acc1.Equals(acc1) // Tests equality branch
 	_ = acc1.ToProto()    // Tests the ToProto statement

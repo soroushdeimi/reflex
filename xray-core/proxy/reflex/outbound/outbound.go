@@ -79,7 +79,7 @@ func (h *Handler) Process(ctx context.Context, link *transport.Link, dialer inte
 		buf.ReleaseMulti(mb)
 	}
 
-	encodedDest := encodeDest(dest) 
+	encodedDest := encodeDest(dest)
 	firstFrameData := append(encodedDest, firstPayload...)
 
 	// 5. Initialize the Dynamic Morpher (Step 5 requirement)
@@ -106,7 +106,7 @@ func (h *Handler) performHandshake(conn net.Conn) (*reflex.Session, error) {
 
 	// Handshake Packet: [Magic(4)] [PubKey(32)] [UUID(16)] [Time(8)] [Nonce(16)]
 	req := make([]byte, 0, 76)
-	
+
 	magicBuf := make([]byte, 4)
 	binary.BigEndian.PutUint32(magicBuf, ReflexMagic)
 	req = append(req, magicBuf...)
@@ -165,7 +165,9 @@ func (h *Handler) pipeUplink(sess *reflex.Session, conn io.Writer, reader buf.Re
 			return err
 		}
 		for _, b := range mb {
-			if b == nil { continue }
+			if b == nil {
+				continue
+			}
 			// Apply Advanced Traffic Morphing to outgoing data
 			if err := sess.WriteFrameWithDynamicMorphing(conn, reflex.FrameTypeData, b.Bytes(), morpher); err != nil {
 				buf.ReleaseMulti(mb) // Ensure memory is released on error
@@ -182,7 +184,7 @@ func (h *Handler) pipeDownlink(sess *reflex.Session, conn io.Reader, writer buf.
 		if err != nil {
 			return err
 		}
-		
+
 		switch frame.Type {
 		case reflex.FrameTypeData:
 			_ = writer.WriteMultiBuffer(buf.MultiBuffer{buf.FromBytes(frame.Payload)})

@@ -14,10 +14,10 @@ type MockStatConn struct {
 	gonet.Conn
 }
 
-func (c *MockStatConn) BytesRead() uint64         { return 0 }
-func (c *MockStatConn) BytesWritten() uint64      { return 0 }
-func (c *MockStatConn) HandshakeSeconds() uint64  { return 0 }
-func (c *MockStatConn) Upstream() any             { return nil }
+func (c *MockStatConn) BytesRead() uint64        { return 0 }
+func (c *MockStatConn) BytesWritten() uint64     { return 0 }
+func (c *MockStatConn) HandshakeSeconds() uint64 { return 0 }
+func (c *MockStatConn) Upstream() any            { return nil }
 
 func TestErrorPaths(t *testing.T) {
 	// 1. Setup Handler
@@ -30,10 +30,10 @@ func TestErrorPaths(t *testing.T) {
 	// 2. Test: Incomplete Handshake (Coverage for Peek Error)
 	client, server := gonet.Pipe()
 	go func() {
-		client.Write([]byte("RF")) // Too short to be a Magic Byte
-		client.Close()
+		_, _ = client.Write([]byte("RF")) // Too short to be a Magic Byte
+		_ = client.Close()
 	}()
-	
+
 	// Wrap the server connection in our Mock
 	mockConn := &MockStatConn{Conn: server}
 
@@ -46,10 +46,10 @@ func TestErrorPaths(t *testing.T) {
 	// 3. Test: Unknown Protocol (Coverage for Magic Byte Mismatch)
 	client2, server2 := gonet.Pipe()
 	go func() {
-		client2.Write([]byte("BADDATA")) 
-		client2.Close()
+		_, _ = client2.Write([]byte("BADDATA"))
+		_ = client2.Close()
 	}()
-	
+
 	mockConn2 := &MockStatConn{Conn: server2}
-	handler.Process(context.Background(), net.Network_TCP, mockConn2, nil)
+	_=handler.Process(context.Background(), net.Network_TCP, mockConn2, nil)
 }

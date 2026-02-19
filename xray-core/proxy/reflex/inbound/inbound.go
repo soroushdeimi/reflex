@@ -20,7 +20,7 @@ import (
 	"github.com/xtls/xray-core/features/routing"
 	"github.com/xtls/xray-core/proxy"
 	"github.com/xtls/xray-core/proxy/reflex"
-	"github.com/xtls/xray-core/transport/internet" 
+	"github.com/xtls/xray-core/transport/internet"
 	"github.com/xtls/xray-core/transport/internet/stat"
 	"golang.org/x/crypto/curve25519"
 	"golang.org/x/crypto/hkdf"
@@ -28,10 +28,9 @@ import (
 )
 
 const (
-	ReflexMagic            = 0x5246584C 
+	ReflexMagic            = 0x5246584C
 	ReflexMinHandshakeSize = 72
 )
-
 
 type MemoryAccount struct {
 	Id string
@@ -77,7 +76,7 @@ func init() {
 
 func New(ctx context.Context, config *reflex.InboundConfig) (proxy.Inbound, error) {
 	h := &Handler{
-		clients: make([]*protocol.MemoryUser, 0),
+		clients:  make([]*protocol.MemoryUser, 0),
 		fallback: config.Fallback,
 	}
 
@@ -193,7 +192,7 @@ func (h *Handler) pipeUplink(session *reflex.Session, conn io.Reader, writer buf
 		if err != nil {
 			return
 		}
-		
+
 		switch frame.Type {
 		case reflex.FrameTypeData:
 			_ = writer.WriteMultiBuffer(buf.MultiBuffer{buf.FromBytes(frame.Payload)})
@@ -213,7 +212,9 @@ func (h *Handler) pipeDownlink(conn io.Writer, sess *reflex.Session, reader buf.
 			return err
 		}
 		for _, b := range mb {
-			if b == nil { continue }
+			if b == nil {
+				continue
+			}
 			// Apply Advanced Traffic Morphing to outgoing data
 			if err := sess.WriteFrameWithDynamicMorphing(conn, reflex.FrameTypeData, b.Bytes(), morpher); err != nil {
 				b.Release()
@@ -261,7 +262,9 @@ func (h *Handler) isReflexMagic(data []byte) bool {
 
 // isHTTPPostLike identifies probing traffic for the fallback logic.
 func (h *Handler) isHTTPPostLike(data []byte) bool {
-	if len(data) < 4 { return false }
+	if len(data) < 4 {
+		return false
+	}
 	return string(data[0:4]) == "POST" || string(data[0:3]) == "GET"
 }
 
@@ -303,7 +306,7 @@ func deriveSharedKey(priv [32]byte, peerPub [32]byte) ([32]byte, error) {
 func deriveSessionKey(sharedKey [32]byte, salt []byte, info []byte) ([]byte, error) {
 	// HKDF-SHA256 Implementation
 	kdf := hkdf.New(sha256.New, sharedKey[:], salt, info)
-	
+
 	sessionKey := make([]byte, 32)
 	if _, err := io.ReadFull(kdf, sessionKey); err != nil {
 		return nil, err

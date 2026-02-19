@@ -42,7 +42,7 @@ func TestPartialMagic(t *testing.T) {
 	// The server should wait, not crash or accept it yet.
 	// But since this function checks "is it magic?", it should return false for partial data.
 	partial := []byte{0x52, 0x46} // "RF..."
-	
+
 	if h.isReflexMagic(partial) {
 		t.Error("Error: Partial magic bytes incorrectly accepted as full valid magic.")
 	}

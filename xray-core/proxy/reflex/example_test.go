@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"io"
 	"time"
-	
+
 	"github.com/xtls/xray-core/proxy/reflex"
 )
 
@@ -23,11 +23,11 @@ func ExampleNewSession() {
 func ExampleSession_WriteFrameWithMorphing() {
 	key := make([]byte, 32)
 	session, _ := reflex.NewSession(key)
-	
+
 	// We use the YouTube profile to hide our traffic pattern.
 	profile := &reflex.YouTubeProfile
 	data := []byte("secret data")
-	
+
 	// io.Discard is used here for demonstration purposes
 	err := session.WriteFrameWithMorphing(io.Discard, reflex.FrameTypeData, data, profile)
 	if err == nil {
@@ -40,7 +40,7 @@ func ExampleSession_WriteFrameWithMorphing() {
 func ExampleNewDynamicMorpher() {
 	// Rotate between YouTube and Zoom every 5 seconds
 	morpher := reflex.NewDynamicMorpher(5 * time.Second)
-	
+
 	profile := morpher.GetCurrentProfile()
 	fmt.Printf("Current active profile: %s\n", profile.Name)
 	// Output: Current active profile: YouTube
