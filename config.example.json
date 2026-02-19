@@ -1,0 +1,35 @@
+{
+  "log": {
+    "loglevel": "info"
+  },
+  "inbounds": [
+    {
+      "tag": "reflex-in",
+      "port": 443,
+      "protocol": "reflex",
+      "settings": {
+        "clients": [
+          {
+            "id": "YOUR-UUID-HERE",
+            "email": "student@example.com"
+          }
+        ],
+        "fallback": {
+          "dest": "127.0.0.1:8080",
+          "xver": 0
+        }
+      },
+      "streamSettings": {
+        "network": "tcp",
+        "security": "tls"
+      }
+    }
+  ],
+  "outbounds": [
+    {
+      "tag": "direct",
+      "protocol": "freedom",
+      "settings": {}
+    }
+  ]
+}
