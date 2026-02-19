@@ -14,8 +14,12 @@ type Handler struct {
 	config *reflex.OutboundConfig
 }
 
-func (h *Handler) Process(context.Context, *transport.Link, internet.Dialer) error {
-	// Step 1 keeps process logic intentionally empty.
+func (h *Handler) Process(_ context.Context, link *transport.Link, _ internet.Dialer) error {
+	if link == nil {
+		return nil
+	}
+	_ = link.Reader
+	_ = link.Writer
 	return nil
 }
 
