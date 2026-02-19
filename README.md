@@ -1,61 +1,70 @@
-# 📡 پروژه Reflex - نمای کلی
+# پروژه Reflex - دیانا بابایی
 
-یک پروتکل پراکسی هوشمند برای **Xray-Core** که ترافیک پراکسی رو غیرقابل تشخیص می‌کنه.
+## اعضای تیم
 
-## چی بلد می‌کنه؟
+ دیانا بابایی 400171324 
+ 
+ رضوان حسین‌نژاد  400108814 
+ 
+ امین هاشمی  400109208 
 
-✅ **رمزنگاری قوی**: ChaCha20-Poly1305
-✅ **احراز هویت ایمن**: X25519 ECDH
-✅ **مخفی‌سازی ترافیک**: Traffic Morphing (مثل YouTube, Zoom, HTTP/2)
-✅ **ساختار فریم‌پایه**: پروتکل منظم و انعطاف‌پذیر
-✅ **Fallback وب**: به نظر سرور عادی می‌آید
 
----
+## توضیحات
 
-## شروع سریع (5 دقیقه)
+در این پروژه پروتکل جدید **Reflex** را روی **Xray-Core** پیاده‌سازی کردیم. هدف، ساخت یک پروتکل پراکسی است که ترافیک آن غیرقابل تشخیص باشد و با رمزنگاری قوی و مخفی‌سازی ترافیک، محدودیت‌های پروتکل‌های قبلی مثل VMess و VLESS را کاهش دهد.
 
-### ۱. نیازمندی‌ها
-```bash
-# Go 1.18+
-go version
+### کارهای انجام‌شده:
+- ساختار پایه پکیج Reflex در Xray-Core
+- Handshake و احراز هویت با X25519 ECDH
+- رمزنگاری فریم‌ها با ChaCha20-Poly1305
+- مکانیزم Fallback به وب‌سرور
+- Traffic Morphing با ۳ پروفایل (YouTube, Zoom, HTTP/2 API)
+- تست‌های واحد و یکپارچگی  
 
-# Git
-git --version
-```
+## نحوه اجرا
 
-### ۲. بیلد
+### بیلد
 ```bash
 cd xray-core
 go build -o xray ./main/
 ```
 
-### ۳. تست
+### اجرای سرور و کلاینت
 ```bash
-# درایو اول (echo server)
-go run echo-server.go
+# ترمینال 1 - سرور
+cd xray-core
+./xray -c ../reflex-server-test.json
 
-# درایو دوم (سرور)
-./xray-core/xray -c reflex-server-test.json
+# ترمینال 2 - کلاینت
+cd xray-core
+./xray -c ../reflex-client-test.json
 
-# درایو سوم (کلاینت)
-./xray-core/xray -c reflex-client-test.json
-
-# درایو چهارم (مرورگر)
-# Firefox: SOCKS5 = 127.0.0.1:10002
-# Navigate to: http://127.0.0.1:9996
+# ترمینال 3 - تست
+curl -x socks5://127.0.0.1:10003 http://example.com
 ```
 
-### ۴. تأیید
-- [ ] Firefox وصل شد ✅
-- [ ] Terminal 1: `New connection from 127.0.0.1:XXXXX` دید ✅
-- [ ] بسته‌ها رمزنگاری شدند ✅
+### اجرای تست‌ها
+```bash
+cd xray-core
+go test ./tests/... -v
+go test ./proxy/reflex/... -v
+```
+
+## مشکلات و راه‌حل‌ها
+
+**مشکل: تونل برقرار می‌شد ولی ترافیک به سایت واقعی نمی‌رسید**
+تونل بین کلاینت و سرور برقرار می‌شد (اتصال TCP موفق)، اما درخواست‌ها به مقصد واقعی ارسال نمی‌شدند. مشکل در routing سرور بود — outbound روی `freedom` تنظیم نشده بود و ترافیک پس از decrypt شدن جایی برای رفتن نداشت. راه‌حل: اضافه کردن outbound با protocol `freedom` و routing rule در config سرور.
+
+**مشکل: Firefox با SOCKS5 کار نمی‌کند (400 Bad Request)**
+راه‌حل:فکر میکنم این محدودیت Firefox است، نه Reflex. curl بدون مشکل کار می‌کنند.
+
 
 ---
 
 ## مراحل پیاده‌سازی
 
-| مرحله | توضیح | کد |
-|------|-------|-----|
+| مرحله | توضیح | فایل |
+|------|-------|------|
 | **1** | ساختار اولیه | `xray-core/proxy/reflex/` |
 | **2** | احراز هویت & Handshake | `encoding/handshake.go` |
 | **3** | رمزنگاری & فریم‌ها | `encoding/frame.go` |
@@ -64,48 +73,8 @@ go run echo-server.go
 
 ---
 
-## پروفایل‌های Morphing
+## مستندات
 
-```json
-{
-  "clients": [
-    {
-      "id": "user-uuid-1",
-      "policy": "youtube"      // ← بزرگ = دانلود، استریم
-    },
-    {
-      "id": "user-uuid-2",
-      "policy": "zoom"         // ← کوچک = تماس، صدا
-    },
-    {
-      "id": "user-uuid-3",
-      "policy": "http2-api"    // ← مختلط = مرور، API (پیش‌فرض)
-    }
-  ]
-}
-```
-
----
-
-## سوالات متداول
-
-**Q: خطای `proto.Message`؟**
-A: فایل‌های `.pb.go` را generate کنید: `protoc xray-core/proxy/reflex/*.proto`
-
-**Q: Morphing کار نمی‌کنه؟**
-A: Wireshark چک کنید: `tcp.dstport == 8555` - بسته‌ها مختلط باید باشند.
-
-**Q: نمی‌تونم وصل شم؟**
-A: UUID کلاینت و سرور یکی هست؟ Log فایل‌ها چک کنید.
-
----
-
-## مراجع
-
-📘 **جزئیات پیاده‌سازی**: [فایل مراحل](docs/STEPS_FA.md)
-🚀 **دستورات اجرا**: [فایل اجرا](docs/RUN_GUIDE_FA.md)
-🔐 **پروتکل**: [مشخصات](docs/protocol.md)
-
----
-
-**موفق باشید!** 🎯
+- [گزارش پیاده‌سازی](REPORT.md)
+- [راهنمای اجرا](RUN_GUIDE_FA.md)
+- [نمونه کانفیگ](config.example.json)

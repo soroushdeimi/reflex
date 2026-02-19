@@ -25,8 +25,8 @@ func (c *ReflexInboundConfig) Build() (proto.Message, error)
 ```
 
 ### نتیجه
-✅ پروتکل Reflex در Xray کار می‌کنه
-✅ Config JSON پارس می‌شه
+ پروتکل Reflex در Xray کار می‌کنه
+ Config JSON پارس می‌شه
 
 ---
 
@@ -63,8 +63,8 @@ func ServerHandshake(conn, accounts) sessionKey {
 ```
 
 ### نتیجه
-✅ Handshake ایمن کار می‌کنه
-✅ Session Key برای هر اتصال منحصر به فرد
+ Handshake ایمن کار می‌کنه
+ Session Key برای هر اتصال منحصر به فرد
 
 ---
 
@@ -75,10 +75,10 @@ func ServerHandshake(conn, accounts) sessionKey {
 
 ### ساختار فریم
 ```
-┌──────────┬──────────────┬──────────────┐
+
 │  Nonce   │  Data Enc    │  Auth Tag    │
 │  (8B)    │  (variable)  │  (16B)       │
-└──────────┴──────────────┴──────────────┘
+
 ```
 
 ### پیاده‌سازی
@@ -100,9 +100,9 @@ func (d *FrameDecoder) ReadFrame() ([]byte, error) {
 ```
 
 ### ویژگی‌ها
-✅ رمزنگاری AEAD: محرمانگی + احراز هویت
-✅ Nonce تصادفی: جلوگیری از replay attack
-✅ Auth Tag: جلوگیری از tampering
+ رمزنگاری AEAD: محرمانگی + احراز هویت
+ Nonce تصادفی: جلوگیری از replay attack
+ Auth Tag: جلوگیری از tampering
 
 ---
 
@@ -133,8 +133,8 @@ func (h *Handler) Handle(conn) {
 - Proxy reachability مخفی می‌شه
 
 ### نتیجه
-✅ Fallback کار می‌کنه
-✅ سرور خارجی امن به نظر می‌آید
+ Fallback کار می‌کنه
+ سرور خارجی امن به نظر می‌آید
 
 ---
 
@@ -148,7 +148,7 @@ func (h *Handler) Handle(conn) {
 
 ### ۳ پروفایل
 
-#### 📺 **YouTube** - استریم و دانلود
+####  **YouTube** - استریم و دانلود
 ```
 اندازه بسته:
 - 800B:   10%
@@ -162,7 +162,7 @@ func (h *Handler) Handle(conn) {
 - 30ms:   20% ← برای video streaming
 ```
 
-#### 📱 **Zoom** - تماس و صدا
+#### **Zoom** - تماس و صدا
 ```
 اندازه بسته:
 - 500B:   30%
@@ -175,7 +175,7 @@ func (h *Handler) Handle(conn) {
 - 50ms:   20% ← برای real-time
 ```
 
-#### 🌐 **HTTP/2 API** (پیش‌فرض)
+#### **HTTP/2 API** (پیش‌فرض)
 ```
 اندازه بسته:
 - 200B:   20%
@@ -233,9 +233,32 @@ func (p *Profile) ApplyMorphing(payload) (padded, delay) {
 ```
 
 ### نتیجه
-✅ بسته‌ها مختلط: 45B, 56B, 79B, 200B, 500B, 1000B+
-✅ Packet sniffer تشخیص نمی‌دهد proxy هست
-✅ ترافیک مثل وب‌سایت واقعی به نظر می‌آید
+ بسته‌ها مختلط: 45B, 56B, 79B, 200B, 500B, 1000B+
+ Packet sniffer تشخیص نمی‌دهد proxy هست
+ ترافیک مثل وب‌سایت واقعی به نظر می‌آید
+
+---
+
+## تست‌ها
+
+### فایل تست یکپارچه
+`xray-core/tests/reflex_test.go`
+
+| تست | موضوع | نتیجه |
+|-----|-------|-------|
+| `TestHandshakeKeyExchange` | ECDH - shared secret دو طرف یکی است | pass |
+| `TestHandshakeSessionKey` | Session key از shared secret مشتق می‌شود | pass |
+| `TestEncryptionEncodeDecodeFrame` | رمزنگاری و رمزگشایی فریم | pass |
+| `TestEncryptionTamperDetection` | کلید اشتباه → خطا (tamper detected) | pass |
+| `TestFallbackHTTPDetection` | تشخیص HTTP request برای fallback | pass |
+| `TestReplayProtection` | چند فریم متوالی بدون خطا | pass |
+| `TestIntegrationFullConnection` | جریان کامل client-server | pass |
+
+```bash
+cd xray-core
+go test ./tests/... -v
+# ok  github.com/xtls/xray-core/tests
+```
 
 ---
 

@@ -103,45 +103,39 @@ Double-click: TRUE تنظیم کنید
 
 ---
 
-## ۴. تست هر مرحله
+## ۴. اجرای تست‌ها
 
-### مرحله 1: Config Parsing
+### تست‌های یکپارچه (`xray-core/tests/`)
 ```bash
-go test ./infra/conf -v -run Reflex
+cd xray-core
+go test ./tests/... -v
 
-# انتظار: PASS
+# خروجی انتظاری:
+# --- PASS: TestHandshakeKeyExchange
+# --- PASS: TestHandshakeSessionKey
+# --- PASS: TestEncryptionEncodeDecodeFrame
+# --- PASS: TestEncryptionTamperDetection
+# --- PASS: TestFallbackHTTPDetection
+# --- PASS: TestReplayProtection
+# --- PASS: TestIntegrationFullConnection
+# ok  github.com/xtls/xray-core/tests
 ```
 
-### مرحله 2: Handshake
+### تست‌های واحد (`proxy/reflex/`)
 ```bash
-go test ./proxy/reflex/encoding -v -run Handshake
+cd xray-core
 
-# انتظار: Session key generated ✓
-```
+# همه تست‌ها
+go test ./proxy/reflex/... -v
 
-### مرحله 3: Encryption
-```bash
-go test ./proxy/reflex/encoding -v -run Frame
+# Handshake
+go test ./proxy/reflex/encoding -v -run TestHandshake
 
-# انتظار: Encrypt/Decrypt works ✓
-```
+# رمزنگاری
+go test ./proxy/reflex/encoding -v -run TestFrame
 
-### مرحله 4: Fallback
-```bash
-# HTTP server روی 9996
-python3 -m http.server 9996 &
-
-# سپس curl:
-curl http://127.0.0.1:8555
-
-# انتظار: HTTP response
-```
-
-### مرحله 5: Morphing
-```bash
-go test ./proxy/reflex/encoding -v -run Morphing
-
-# انتظار: Packet sizes match distribution ✓
+# Morphing
+go test ./proxy/reflex/encoding -v -run TestMorphing
 ```
 
 ---
@@ -194,17 +188,17 @@ SUCCESS ✓
 # بیلد
 cd xray-core && go build -o xray ./main/ && cd ..
 
-# تست همه
-go test ./proxy/reflex/... -v
+# تست یکپارچه (پوشه tests/)
+cd xray-core && go test ./tests/... -v
 
-# تست specific
-go test ./proxy/reflex/encoding -v -run TestFrame
+# تست واحد (proxy/reflex/)
+cd xray-core && go test ./proxy/reflex/... -v
 
 # Log دیدن
 tail -f reflex-server-test-error.log
 
 # Process کشتن
-pkill -f "xray.*8555"
+pkill -f "xray.*8557"
 
 # Clean
 go clean && rm xray-core/xray
