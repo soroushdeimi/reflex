@@ -12,6 +12,7 @@ import (
 	stdnet "net"
 	"time"
 
+	"github.com/quic-go/quic-go"
 	"github.com/xtls/xray-core/common"
 	"github.com/xtls/xray-core/common/buf"
 	"github.com/xtls/xray-core/common/errors"
@@ -108,7 +109,7 @@ func (w *tlsConnWrapper) SetWriteDeadline(t time.Time) error {
 }
 
 func (h *Handler) Network() []net.Network {
-	return []net.Network{net.Network_TCP}
+	return []net.Network{net.Network_TCP, net.Network_UDP}
 }
 
 func (h *Handler) Process(ctx context.Context, network net.Network, conn stat.Connection, dispatcher routing.Dispatcher) error {
@@ -544,4 +545,18 @@ func New(ctx context.Context, config *reflex.InboundConfig) (proxy.Inbound, erro
 	}
 
 	return handler, nil
+}
+
+func handleQUICConnection(ctx context.Context, conn *quic.Conn, h *Handler, dispatcher routing.Dispatcher) error {
+	stream, err := conn.AcceptStream(ctx)
+	if err != nil {
+		return err
+	}
+
+	streamConn := &reflex.QuicStreamConn{
+		Stream: stream,
+		Conn:   conn,
+	}
+
+	return h.Process(ctx, net.Network_TCP, streamConn, dispatcher)
 }
