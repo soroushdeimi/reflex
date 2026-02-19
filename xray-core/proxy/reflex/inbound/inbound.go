@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	stdnet "net"
 
 	"github.com/xtls/xray-core/common"
 	"github.com/xtls/xray-core/common/buf"
@@ -32,6 +33,15 @@ type MemoryAccount struct {
 	Id string
 }
 
+type FallbackConfig struct {
+	Dest uint32
+}
+
+type preloadedConn struct {
+	*bufio.Reader
+	stat.Connection
+}
+
 func (a *MemoryAccount) Equals(account protocol.Account) bool {
 	reflexAccount, ok := account.(*MemoryAccount)
 	if !ok {
@@ -46,8 +56,12 @@ func (a *MemoryAccount) ToProto() proto.Message {
 	}
 }
 
-type FallbackConfig struct {
-	Dest uint32
+func (pc *preloadedConn) Read(b []byte) (int, error) {
+	return pc.Reader.Read(b)
+}
+
+func (pc *preloadedConn) Write(b []byte) (int, error) {
+	return pc.Connection.Write(b)
 }
 
 func (h *Handler) Network() []net.Network {
@@ -190,6 +204,21 @@ func (h *Handler) handleFallback(ctx context.Context, reader *bufio.Reader, conn
 	if h.fallback == nil {
 		return errors.New("no fallback configured")
 	}
+
+	wrappedConn := &preloadedConn{
+		Reader:     reader,
+		Connection: conn,
+	}
+
+	target, err := stdnet.Dial("tcp", fmt.Sprintf("127.0.0.1:%d", h.fallback.Dest))
+	if err != nil {
+		return err
+	}
+	defer target.Close()
+
+	go io.Copy(target, wrappedConn)
+	io.Copy(wrappedConn, target)
+
 	return nil
 }
 
