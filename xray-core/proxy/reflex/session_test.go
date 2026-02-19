@@ -152,7 +152,6 @@ func TestLargeData(t *testing.T) {
 // --- Performance Benchmarks ---
 
 func BenchmarkEncryption(b *testing.B) {
-	// Setup
 	key := make([]byte, 32)
 	_,_ = rand.Read(key)
 	session, _ := NewSession(key)
