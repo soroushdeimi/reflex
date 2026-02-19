@@ -3,6 +3,7 @@ package inbound
 import (
 	"bufio"
 	"context"
+	"crypto/tls"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -26,8 +27,9 @@ import (
 const ReflexMinHandshakeSize = 64
 
 type Handler struct {
-	clients  []*protocol.MemoryUser
-	fallback *FallbackConfig
+	clients   []*protocol.MemoryUser
+	fallback  *FallbackConfig
+	tlsConfig *tls.Config
 }
 
 type MemoryAccount struct {
@@ -65,11 +67,60 @@ func (pc *preloadedConn) Write(b []byte) (int, error) {
 	return pc.Connection.Write(b)
 }
 
+type tlsConnWrapper struct {
+	*tls.Conn
+	originalConn stat.Connection
+}
+
+func (w *tlsConnWrapper) Read(b []byte) (int, error) {
+	return w.Conn.Read(b)
+}
+
+func (w *tlsConnWrapper) Write(b []byte) (int, error) {
+	return w.Conn.Write(b)
+}
+
+func (w *tlsConnWrapper) Close() error {
+	return w.Conn.Close()
+}
+
+func (w *tlsConnWrapper) RemoteAddr() stdnet.Addr {
+	return w.Conn.RemoteAddr()
+}
+
+func (w *tlsConnWrapper) LocalAddr() stdnet.Addr {
+	return w.Conn.LocalAddr()
+}
+
+func (w *tlsConnWrapper) SetDeadline(t time.Time) error {
+	return w.Conn.SetDeadline(t)
+}
+
+func (w *tlsConnWrapper) SetReadDeadline(t time.Time) error {
+	return w.Conn.SetReadDeadline(t)
+}
+
+func (w *tlsConnWrapper) SetWriteDeadline(t time.Time) error {
+	return w.Conn.SetWriteDeadline(t)
+}
+
 func (h *Handler) Network() []net.Network {
 	return []net.Network{net.Network_TCP}
 }
 
 func (h *Handler) Process(ctx context.Context, network net.Network, conn stat.Connection, dispatcher routing.Dispatcher) error {
+	if h.tlsConfig != nil {
+		tlsConn := tls.Server(conn, h.tlsConfig)
+		if err := tlsConn.Handshake(); err != nil {
+			return err
+		}
+		wrappedConn := &tlsConnWrapper{
+			Conn:         tlsConn,
+			originalConn: conn,
+		}
+		conn = wrappedConn
+	}
+
 	reader := bufio.NewReader(conn)
 
 	peeked, err := reader.Peek(ReflexMinHandshakeSize)
@@ -366,12 +417,19 @@ func init() {
 	}))
 }
 
+func setupTLSWithECH(publicSNI string) (*tls.Config, error) {
+	config := &tls.Config{
+		ServerName: publicSNI,
+		MinVersion: tls.VersionTLS13,
+	}
+	return config, nil
+}
+
 func New(ctx context.Context, config *reflex.InboundConfig) (proxy.Inbound, error) {
 	handler := &Handler{
 		clients: make([]*protocol.MemoryUser, 0),
 	}
 
-	// تبدیل config به handler
 	for _, client := range config.Clients {
 		handler.clients = append(handler.clients, &protocol.MemoryUser{
 			Email:   client.Id,
@@ -383,6 +441,11 @@ func New(ctx context.Context, config *reflex.InboundConfig) (proxy.Inbound, erro
 		handler.fallback = &FallbackConfig{
 			Dest: config.Fallback.Dest,
 		}
+	}
+
+	tlsConfig, err := setupTLSWithECH("cloudflare.com")
+	if err == nil {
+		handler.tlsConfig = tlsConfig
 	}
 
 	return handler, nil
