@@ -27,9 +27,10 @@ import (
 const ReflexMinHandshakeSize = 64
 
 type Handler struct {
-	clients   []*protocol.MemoryUser
-	fallback  *FallbackConfig
-	tlsConfig *tls.Config
+	clients      []*protocol.MemoryUser
+	userPolicies map[string]string
+	fallback     *FallbackConfig
+	tlsConfig    *tls.Config
 }
 
 type MemoryAccount struct {
@@ -331,19 +332,12 @@ func (h *Handler) handleSession(ctx context.Context, reader *bufio.Reader, conn 
 		return err
 	}
 
-	profile := &reflex.TrafficProfile{
-		Name: "YouTube",
-		PacketSizes: []reflex.PacketSizeDist{
-			{Size: 1400, Weight: 0.4},
-			{Size: 1200, Weight: 0.3},
-			{Size: 1000, Weight: 0.2},
-			{Size: 800, Weight: 0.1},
-		},
-		Delays: []reflex.DelayDist{
-			{Delay: 10 * time.Millisecond, Weight: 0.5},
-			{Delay: 20 * time.Millisecond, Weight: 0.3},
-			{Delay: 30 * time.Millisecond, Weight: 0.2},
-		},
+	account := user.Account.(*MemoryAccount)
+	profileName := h.getProfileForUser(account.Id)
+	if profileName != "" {
+		session.SetProfile(profileName)
+	} else {
+		session.StartYouTubeMorphing()
 	}
 
 	for {
@@ -361,11 +355,15 @@ func (h *Handler) handleSession(ctx context.Context, reader *bufio.Reader, conn 
 			continue
 
 		case reflex.FrameTypePadding:
-			session.HandleControlFrame(frame, profile)
+			if session.GetProfile() != nil {
+				session.HandleControlFrame(frame, session.GetProfile())
+			}
 			continue
 
 		case reflex.FrameTypeTiming:
-			session.HandleControlFrame(frame, profile)
+			if session.GetProfile() != nil {
+				session.HandleControlFrame(frame, session.GetProfile())
+			}
 			continue
 
 		case reflex.FrameTypeClose:
@@ -399,7 +397,7 @@ func (h *Handler) handleData(ctx context.Context, data []byte, conn stat.Connect
 				return
 			}
 			for _, b := range mb {
-				if err := session.WriteFrame(conn, reflex.FrameTypeData, b.Bytes()); err != nil {
+				if err := session.WriteFrameWithMorphingIfEnabled(conn, reflex.FrameTypeData, b.Bytes()); err != nil {
 					b.Release()
 					return
 				}
@@ -425,9 +423,32 @@ func setupTLSWithECH(publicSNI string) (*tls.Config, error) {
 	return config, nil
 }
 
+func (h *Handler) getProfileForUser(userID string) string {
+	if h.userPolicies != nil {
+		if policy, ok := h.userPolicies[userID]; ok {
+			return h.mapPolicyToProfile(policy)
+		}
+	}
+	return ""
+}
+
+func (h *Handler) mapPolicyToProfile(policy string) string {
+	switch policy {
+	case "mimic-youtube", "youtube":
+		return "youtube"
+	case "mimic-zoom", "zoom":
+		return "zoom"
+	case "mimic-http2-api", "http2-api", "http2":
+		return "http2-api"
+	default:
+		return ""
+	}
+}
+
 func New(ctx context.Context, config *reflex.InboundConfig) (proxy.Inbound, error) {
 	handler := &Handler{
-		clients: make([]*protocol.MemoryUser, 0),
+		clients:      make([]*protocol.MemoryUser, 0),
+		userPolicies: make(map[string]string),
 	}
 
 	for _, client := range config.Clients {
@@ -435,6 +456,9 @@ func New(ctx context.Context, config *reflex.InboundConfig) (proxy.Inbound, erro
 			Email:   client.Id,
 			Account: &MemoryAccount{Id: client.Id},
 		})
+		if client.Policy != "" {
+			handler.userPolicies[client.Id] = client.Policy
+		}
 	}
 
 	if config.Fallback != nil {

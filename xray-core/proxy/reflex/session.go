@@ -13,11 +13,13 @@ import (
 )
 
 type Session struct {
-	key        []byte
-	aead       cipher.AEAD
-	readNonce  uint64
-	writeNonce uint64
-	nonceCache *NonceCache
+	key             []byte
+	aead            cipher.AEAD
+	readNonce       uint64
+	writeNonce      uint64
+	nonceCache      *NonceCache
+	profile         *TrafficProfile
+	morphingEnabled bool
 }
 
 type TrafficProfile struct {
@@ -181,6 +183,81 @@ func (s *Session) WriteFrame(writer io.Writer, frameType uint8, data []byte) err
 	}
 
 	return nil
+}
+
+func (s *Session) StartYouTubeMorphing() {
+	s.profile = &TrafficProfile{
+		Name: "YouTube",
+		PacketSizes: []PacketSizeDist{
+			{Size: 1400, Weight: 0.4},
+			{Size: 1200, Weight: 0.3},
+			{Size: 1000, Weight: 0.2},
+			{Size: 800, Weight: 0.1},
+		},
+		Delays: []DelayDist{
+			{Delay: 10 * time.Millisecond, Weight: 0.5},
+			{Delay: 20 * time.Millisecond, Weight: 0.3},
+			{Delay: 30 * time.Millisecond, Weight: 0.2},
+		},
+	}
+	s.morphingEnabled = true
+}
+
+func (s *Session) StartZoomMorphing() {
+	s.profile = &TrafficProfile{
+		Name: "Zoom",
+		PacketSizes: []PacketSizeDist{
+			{Size: 500, Weight: 0.3},
+			{Size: 600, Weight: 0.4},
+			{Size: 700, Weight: 0.3},
+		},
+		Delays: []DelayDist{
+			{Delay: 30 * time.Millisecond, Weight: 0.4},
+			{Delay: 40 * time.Millisecond, Weight: 0.4},
+			{Delay: 50 * time.Millisecond, Weight: 0.2},
+		},
+	}
+	s.morphingEnabled = true
+}
+
+func (s *Session) StartHTTP2APIMorphing() {
+	s.profile = &TrafficProfile{
+		Name: "HTTP/2 API",
+		PacketSizes: []PacketSizeDist{
+			{Size: 200, Weight: 0.2},
+			{Size: 500, Weight: 0.3},
+			{Size: 1000, Weight: 0.3},
+			{Size: 1500, Weight: 0.2},
+		},
+		Delays: []DelayDist{
+			{Delay: 5 * time.Millisecond, Weight: 0.3},
+			{Delay: 10 * time.Millisecond, Weight: 0.4},
+			{Delay: 15 * time.Millisecond, Weight: 0.3},
+		},
+	}
+	s.morphingEnabled = true
+}
+
+func (s *Session) SetProfile(profileName string) {
+	switch profileName {
+	case "youtube":
+		s.StartYouTubeMorphing()
+	case "zoom":
+		s.StartZoomMorphing()
+	case "http2-api":
+		s.StartHTTP2APIMorphing()
+	}
+}
+
+func (s *Session) WriteFrameWithMorphingIfEnabled(writer io.Writer, frameType uint8, data []byte) error {
+	if s.morphingEnabled && s.profile != nil {
+		return s.WriteFrameWithMorphing(writer, frameType, data, s.profile)
+	}
+	return s.WriteFrame(writer, frameType, data)
+}
+
+func (s *Session) GetProfile() *TrafficProfile {
+	return s.profile
 }
 
 func (p *TrafficProfile) GetPacketSize() int {
