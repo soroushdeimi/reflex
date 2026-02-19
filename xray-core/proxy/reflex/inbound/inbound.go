@@ -3,6 +3,8 @@ package inbound
 import (
 	"bufio"
 	"context"
+	"crypto/ecdh"
+	"crypto/rand"
 	"crypto/tls"
 	"encoding/binary"
 	"fmt"
@@ -415,8 +417,77 @@ func init() {
 	}))
 }
 
+func generateECHKey() ([]byte, *ecdh.PrivateKey, error) {
+	curve := ecdh.X25519()
+	priv := make([]byte, 32)
+	_, err := io.ReadFull(rand.Reader, priv)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	privateKey, err := curve.NewPrivateKey(priv)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return priv, privateKey, nil
+}
+
+func createECHConfig(privateKey *ecdh.PrivateKey, publicSNI string) ([]byte, error) {
+	publicKeyBytes := privateKey.PublicKey().Bytes()
+
+	echConfig := make([]byte, 0, 100)
+	echConfig = append(echConfig, 0xfe, 0x0d)
+	echConfig = append(echConfig, 0x00, 0x00)
+
+	configID := byte(0)
+	echConfig = append(echConfig, configID)
+
+	kemID := []byte{0x00, 0x20}
+	echConfig = append(echConfig, kemID...)
+
+	publicKeyLen := uint16(len(publicKeyBytes))
+	echConfig = append(echConfig, byte(publicKeyLen>>8), byte(publicKeyLen))
+	echConfig = append(echConfig, publicKeyBytes...)
+
+	cipherSuite := []byte{0x00, 0x01, 0x00, 0x01}
+	echConfig = append(echConfig, cipherSuite...)
+
+	maxNameLen := uint8(255)
+	echConfig = append(echConfig, maxNameLen)
+
+	publicNameLen := uint8(len(publicSNI))
+	echConfig = append(echConfig, publicNameLen)
+	echConfig = append(echConfig, []byte(publicSNI)...)
+
+	extensionsLen := uint16(0)
+	echConfig = append(echConfig, byte(extensionsLen>>8), byte(extensionsLen))
+
+	configLen := uint16(len(echConfig) - 4)
+	echConfig[2] = byte(configLen >> 8)
+	echConfig[3] = byte(configLen)
+
+	return echConfig, nil
+}
+
 func setupTLSWithECH(publicSNI string) (*tls.Config, error) {
+	echPrivateKeyBytes, echPrivateKey, err := generateECHKey()
+	if err != nil {
+		return nil, err
+	}
+
+	echConfig, err := createECHConfig(echPrivateKey, publicSNI)
+	if err != nil {
+		return nil, err
+	}
+
 	config := &tls.Config{
+		EncryptedClientHelloKeys: []tls.EncryptedClientHelloKey{
+			{
+				Config:     echConfig,
+				PrivateKey: echPrivateKeyBytes,
+			},
+		},
 		ServerName: publicSNI,
 		MinVersion: tls.VersionTLS13,
 	}
