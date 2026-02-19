@@ -32,7 +32,6 @@ const (
 	ReflexMinHandshakeSize = 72
 )
 
-// --- Helper Structs ---
 
 type MemoryAccount struct {
 	Id string
@@ -48,6 +47,19 @@ func (a *MemoryAccount) Equals(account protocol.Account) bool {
 
 func (a *MemoryAccount) ToProto() proto.Message {
 	return &reflex.Account{Id: a.Id}
+}
+
+// preloadedConn wraps a stat.Connection and a bufio.Reader.
+// It ensures that bytes already read into the buffer (via Peek) are not lost
+// when handing the connection off to the fallback server.
+type preloadedConn struct {
+	*bufio.Reader
+	stat.Connection
+}
+
+// Read overrides the standard connection Read to use the buffered reader first.
+func (pc *preloadedConn) Read(b []byte) (int, error) {
+	return pc.Reader.Read(b)
 }
 
 type Handler struct {
@@ -92,7 +104,7 @@ func (h *Handler) Process(ctx context.Context, network net.Network, conn stat.Co
 	reader := bufio.NewReader(conn)
 	peeked, err := reader.Peek(4)
 	if err != nil {
-		return h.handleFallback(ctx, conn)
+		return h.handleFallback(ctx, reader, conn) // Pass reader here
 	}
 
 	if h.isReflexMagic(peeked) {
@@ -104,7 +116,7 @@ func (h *Handler) Process(ctx context.Context, network net.Network, conn stat.Co
 		return h.handleSession(ctx, conn, session, dispatcher)
 	}
 
-	return h.handleFallback(ctx, conn)
+	return h.handleFallback(ctx, reader, conn) // Pass reader here
 }
 
 func (h *Handler) ProcessHandshake(conn gonet.Conn, reader io.Reader) (*reflex.Session, error) {
@@ -168,23 +180,33 @@ func (h *Handler) handleSession(ctx context.Context, conn gonet.Conn, session *r
 		_ = link.Writer.WriteMultiBuffer(buf.MultiBuffer{buf.FromBytes(rest)})
 	}
 
-	go h.pipeUplink(session, conn, link.Writer)
-	return h.pipeDownlink(conn, session, link.Reader)
+	// Instantiate the Dynamic Morpher (Switch profile every 30 seconds)
+	morpher := reflex.NewDynamicMorpher(30 * time.Second)
+
+	go h.pipeUplink(session, conn, link.Writer, morpher)
+	return h.pipeDownlink(conn, session, link.Reader, morpher)
 }
 
-func (h *Handler) pipeUplink(session *reflex.Session, conn io.Reader, writer buf.Writer) {
+func (h *Handler) pipeUplink(session *reflex.Session, conn io.Reader, writer buf.Writer, morpher *reflex.DynamicMorpher) {
 	for {
 		frame, err := session.ReadFrame(conn)
 		if err != nil {
 			return
 		}
-		if frame.Type == reflex.FrameTypeData {
+		
+		switch frame.Type {
+		case reflex.FrameTypeData:
 			_ = writer.WriteMultiBuffer(buf.MultiBuffer{buf.FromBytes(frame.Payload)})
+		case reflex.FrameTypePadding, reflex.FrameTypeTiming:
+			// Process incoming control frames to sync client and server shaping
+			session.HandleControlFrame(frame, morpher.GetCurrentProfile())
+		case reflex.FrameTypeClose:
+			return
 		}
 	}
 }
 
-func (h *Handler) pipeDownlink(conn io.Writer, sess *reflex.Session, reader buf.Reader) error {
+func (h *Handler) pipeDownlink(conn io.Writer, sess *reflex.Session, reader buf.Reader, morpher *reflex.DynamicMorpher) error {
 	for {
 		mb, err := reader.ReadMultiBuffer()
 		if err != nil {
@@ -192,7 +214,8 @@ func (h *Handler) pipeDownlink(conn io.Writer, sess *reflex.Session, reader buf.
 		}
 		for _, b := range mb {
 			if b == nil { continue }
-			if err := sess.WriteFrame(conn, reflex.FrameTypeData, b.Bytes()); err != nil {
+			// Apply Advanced Traffic Morphing to outgoing data
+			if err := sess.WriteFrameWithDynamicMorphing(conn, reflex.FrameTypeData, b.Bytes(), morpher); err != nil {
 				b.Release()
 				return err
 			}
@@ -202,19 +225,33 @@ func (h *Handler) pipeDownlink(conn io.Writer, sess *reflex.Session, reader buf.
 }
 
 // handleFallback establishes a connection to the configured fallback server.
-func (h *Handler) handleFallback(ctx context.Context, conn stat.Connection) error {
-	defer func() { _ = conn.Close() }()
+func (h *Handler) handleFallback(ctx context.Context, reader *bufio.Reader, conn stat.Connection) error {
 	if h.fallback == nil || h.fallback.Dest == 0 {
+		_ = conn.Close()
 		return newError("no fallback configured")
 	}
 
+	// Wrap the connection so the peeked bytes aren't lost
+	wrappedConn := &preloadedConn{
+		Reader:     reader,
+		Connection: conn,
+	}
+
 	dest := net.TCPDestination(net.LocalHostIP, net.Port(h.fallback.Dest))
-	// Passing nil as the third argument uses the default transport settings for the destination.
 	fConn, err := internet.Dial(ctx, dest, nil)
 	if err != nil {
+		_ = wrappedConn.Close()
 		return newError("fallback unreachable").Base(err)
 	}
-	_ = fConn.Close()
+
+	// Bidirectional traffic copy
+	go func() {
+		_, _ = io.Copy(fConn, wrappedConn)
+		_ = fConn.Close()
+	}()
+	_, _ = io.Copy(wrappedConn, fConn)
+	_ = wrappedConn.Close()
+
 	return nil
 }
 

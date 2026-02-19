@@ -5,6 +5,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+// ReflexInboundConfig handles the JSON mapping for the inbound proxy.
 type ReflexInboundConfig struct {
 	Clients  []*ReflexUserConfig   `json:"clients"`
 	Fallback *ReflexFallbackConfig `json:"fallback"`
@@ -38,4 +39,19 @@ func (c *ReflexInboundConfig) Build() (proto.Message, error) {
 	}
 
 	return config, nil
+}
+
+// ReflexOutboundConfig handles the JSON mapping for the outbound proxy.
+type ReflexOutboundConfig struct {
+	Address string `json:"address"`
+	Port    uint32 `json:"port"`
+	ID      string `json:"id"`
+}
+
+func (c *ReflexOutboundConfig) Build() (proto.Message, error) {
+	return &reflex.OutboundConfig{
+		Address: c.Address,
+		Port:    c.Port,
+		Id:      c.ID,
+	}, nil
 }

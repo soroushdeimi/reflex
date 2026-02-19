@@ -1,0 +1,63 @@
+{
+  "log": {
+    "loglevel": "debug"
+  },
+  "inbounds": [
+    {
+      "tag": "socks-in",
+      "port": 1080,
+      "listen": "127.0.0.1",
+      "protocol": "socks",
+      "settings": {
+        "auth": "noauth",
+        "udp": true
+      }
+    },
+    {
+      "tag": "reflex-in",
+      "port": 10080,
+      "listen": "127.0.0.1",
+      "protocol": "reflex",
+      "settings": {
+        "clients": [
+          {
+            "id": "29525c56-6556-43f1-8b2b-09b673627038",
+            "policy": "mimic-http2-api"
+          }
+        ],
+        "fallback": {
+          "dest": 80
+        }
+      }
+    }
+  ],
+  "outbounds": [
+    {
+      "tag": "reflex-out",
+      "protocol": "reflex",
+      "settings": {
+        "address": "127.0.0.1",
+        "port": 10080,
+        "id": "29525c56-6556-43f1-8b2b-09b673627038"
+      }
+    },
+    {
+      "tag": "direct",
+      "protocol": "freedom"
+    }
+  ],
+  "routing": {
+    "rules": [
+      {
+        "type": "field",
+        "inboundTag": ["socks-in"],
+        "outboundTag": "reflex-out"
+      },
+      {
+        "type": "field",
+        "inboundTag": ["reflex-in"],
+        "outboundTag": "direct"
+      }
+    ]
+  }
+}
