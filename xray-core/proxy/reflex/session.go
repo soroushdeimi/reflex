@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"io"
 	mathrand "math/rand"
+	"sort"
 	"sync"
 	"time"
 
@@ -391,4 +392,61 @@ func (s *Session) HandleControlFrame(frame *Frame, profile *TrafficProfile) {
 		delayMs := binary.BigEndian.Uint64(frame.Payload)
 		profile.SetNextDelay(time.Duration(delayMs) * time.Millisecond)
 	}
+}
+
+func CreateProfileFromCapture(packetSizes []int, delays []time.Duration) *TrafficProfile {
+	sizeDist := calculateSizeDistribution(packetSizes)
+	delayDist := calculateDelayDistribution(delays)
+
+	return &TrafficProfile{
+		Name:        "FromCapture",
+		PacketSizes: sizeDist,
+		Delays:      delayDist,
+	}
+}
+
+func calculateSizeDistribution(values []int) []PacketSizeDist {
+	freq := make(map[int]int)
+	for _, v := range values {
+		freq[v]++
+	}
+
+	total := len(values)
+	dist := make([]PacketSizeDist, 0, len(freq))
+
+	for size, count := range freq {
+		dist = append(dist, PacketSizeDist{
+			Size:   size,
+			Weight: float64(count) / float64(total),
+		})
+	}
+
+	sort.Slice(dist, func(i, j int) bool {
+		return dist[i].Size < dist[j].Size
+	})
+
+	return dist
+}
+
+func calculateDelayDistribution(values []time.Duration) []DelayDist {
+	freq := make(map[time.Duration]int)
+	for _, v := range values {
+		freq[v]++
+	}
+
+	total := len(values)
+	dist := make([]DelayDist, 0, len(freq))
+
+	for delay, count := range freq {
+		dist = append(dist, DelayDist{
+			Delay:  delay,
+			Weight: float64(count) / float64(total),
+		})
+	}
+
+	sort.Slice(dist, func(i, j int) bool {
+		return dist[i].Delay < dist[j].Delay
+	})
+
+	return dist
 }
