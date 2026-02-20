@@ -29,14 +29,26 @@ func NewSession(key byte[]) (*Session, error) {
 
 // Encrypt: encrypts data using ChaCha20-Poly1305
 func (s *Session) Encrypt(plaintext []byte) ([]byte, error) {
-  // makr 12 byte nonce, last 8 bytes are writeNonce
+  // make 12 byte nonce, last 8 bytes are writeNonce
   nonce := make([]byte, s.aead.NonceSize())
   binary.BigEndian.PutUint64(nonce[4:], s.writeNonce)
   s.writeNonce++
-  // encrypts thhe data
+  // encrypts the data
   ciphertext := s.aead.Seal(nil, nonce, plaintext, nil)
   return ciphertext, nil
 }
 
-
+// Decrypt: dncrypts data using ChaCha20-Poly1305
+func (s *Session) Decrypt(plaintext []byte) ([]byte, error) {
+  // make 12 byte nonce
+  nonce := make([]byte, s.aead.NonceSize())
+  binary.BigEndian.PutUint64(nonce[4:], s.writeNonce)
+  s.writeNonce++
+  // decrypts the data
+  plaintext, err := s.aead.Open(nil, nonce, ciphertext, nil)
+  if err != nil {
+    return nil, err
+    }
+  return plaintext, nil
+}
   
