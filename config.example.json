@@ -1,0 +1,52 @@
+{
+  "inbounds": [
+    {
+      "port": 443,
+      "protocol": "reflex",
+      "settings": {
+        "clients": [
+          {
+            "id": "204aab6e-2b02-4bba-864b-e25ddc1ab53a",
+            "policy": "youtube"
+          }
+        ],
+        "server_name": "example.com",
+        "use_tls": true,
+        "use_quic": true,
+        "fallback": {
+          "dest": 80
+        }
+      },
+      "streamSettings": {
+        "network": "tcp",
+        "security": "tls",
+        "tlsSettings": {
+          "serverName": "example.com",
+          "certificates": [
+            {
+              "certificateFile": "/path/to/cert.crt",
+              "keyFile": "/path/to/key.key"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "outbounds": [
+    {
+      "protocol": "reflex",
+      "settings": {
+        "address": "example.com",
+        "port": 443,
+        "id": "204aab6e-2b02-4bba-864b-e25ddc1ab53a"
+      },
+      "streamSettings": {
+        "network": "tcp",
+        "security": "tls",
+        "tlsSettings": {
+          "serverName": "example.com"
+        }
+      }
+    }
+  ]
+}
