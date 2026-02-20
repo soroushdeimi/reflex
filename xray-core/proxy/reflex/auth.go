@@ -8,7 +8,7 @@ import (
 )
 
 // authenticateUser searches for a user in the list by UUID
-func authenticateUser(userID [16]byte, users []*protocol.MemoryUser) (*protocol.MemoryUser, error) {
+func AuthenticateUser(userID [16]byte, users []*protocol.MemoryUser) (*protocol.MemoryUser, error) {
 	// Convert bytes to internal UUID type
 	u := uuid.UUID(userID)
 

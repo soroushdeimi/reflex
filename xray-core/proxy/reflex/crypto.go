@@ -9,7 +9,7 @@ import (
 	"golang.org/x/crypto/hkdf"
 )
 
-func generateKeyPair() ([32]byte, [32]byte, error) {
+func GenerateKeyPair() ([32]byte, [32]byte, error) {
 	var privateKey [32]byte
 	var publicKey [32]byte
 	if _, err := rand.Read(privateKey[:]); err != nil {
@@ -19,13 +19,13 @@ func generateKeyPair() ([32]byte, [32]byte, error) {
 	return privateKey, publicKey, nil
 }
 
-func deriveSharedKey(privateKey, peerPublicKey [32]byte) [32]byte {
+func DeriveSharedKey(privateKey, peerPublicKey [32]byte) [32]byte {
 	var shared [32]byte
 	curve25519.ScalarMult(&shared, &privateKey, &peerPublicKey)
 	return shared
 }
 
-func deriveSessionKey(sharedKey [32]byte, salt []byte) ([]byte, error) {
+func DeriveSessionKey(sharedKey [32]byte, salt []byte) ([]byte, error) {
 	hash := sha256.New
 	kdf := hkdf.New(hash, sharedKey[:], salt, []byte("reflex-session"))
 	sessionKey := make([]byte, 32)
