@@ -14,12 +14,14 @@ import (
 	"github.com/xtls/xray-core/common/errors"
 	xnet "github.com/xtls/xray-core/common/net"
 	"github.com/xtls/xray-core/common/protocol"
+	"github.com/xtls/xray-core/common/task"
 	"github.com/xtls/xray-core/core"
 	feature_inbound "github.com/xtls/xray-core/features/inbound"
 	"github.com/xtls/xray-core/features/policy"
 	"github.com/xtls/xray-core/features/routing"
 	"github.com/xtls/xray-core/proxy/reflex"
 	"github.com/xtls/xray-core/proxy/reflex/encoding"
+	"github.com/xtls/xray-core/transport/internet"
 	"github.com/xtls/xray-core/transport/internet/stat"
 )
 
@@ -195,8 +197,47 @@ func (h *Handler) readClientHandshake(r io.Reader) (*encoding.ClientHandshake, e
 	return hs, nil
 }
 
+type preloadedConn struct {
+	stat.Connection
+	io.Reader
+}
+
+func (c *preloadedConn) Read(b []byte) (int, error) {
+	return c.Reader.Read(b)
+}
+
 // handleFallback handles non-Reflex connections
 func (h *Handler) handleFallback(ctx context.Context, reader *bufio.Reader, conn stat.Connection) error {
-	// TODO: Implement fallback handling
-	return nil
+	if h.fallback == nil || h.fallback.Dest == "" {
+		return errors.New("no fallback configured")
+	}
+
+	dest, err := xnet.ParseDestination("tcp:" + h.fallback.Dest)
+	if err != nil {
+		return err
+	}
+	remoteConn, err := internet.Dial(ctx, dest, nil)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		_ = remoteConn.Close()
+	}()
+
+	wrappedConn := &preloadedConn{
+		Connection: conn,
+		Reader:     reader,
+	}
+
+	requestDone := func() error {
+		_, err := io.Copy(remoteConn, wrappedConn)
+		return err
+	}
+
+	responseDone := func() error {
+		_, err := io.Copy(wrappedConn, remoteConn)
+		return err
+	}
+
+	return task.Run(ctx, requestDone, responseDone)
 }
