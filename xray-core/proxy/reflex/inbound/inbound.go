@@ -82,21 +82,23 @@ func (h *Handler) Process(ctx context.Context, network net.Network, conn stat.Co
 }
 
 func (h *Handler) handleReflexMagic(reader *bufio.Reader, conn stat.Connection, dispatcher routing.Dispatcher, ctx context.Context) error {
-	// خواندن magic number (4 بایت)
-	magic := make([]byte, 4)
-	_, err := io.ReadFull(reader, magic)
-	if err != nil {
+	// رد کردن ۴ بایت مجیک (چون قبلاً Peek شده)
+	reader.Discard(4)
+
+	// خواندن ۶۴ بایت دیتای هندشیک
+	hsBuf := make([]byte, 64)
+	if _, err := io.ReadFull(reader, hsBuf); err != nil {
 		return err
 	}
 
-	// خواندن handshake packet
-	var packet reflex.ClientHandshakePacket
+	// باز کردن بایت‌ها در استراکت
+	var clientHS reflex.ClientHandshake
+	copy(clientHS.PublicKey[:], hsBuf[0:32])
+	copy(clientHS.UserID[:], hsBuf[32:48])
+	clientHS.Timestamp = int64(binary.BigEndian.Uint64(hsBuf[48:56]))
+	copy(clientHS.Nonce[:], hsBuf[56:64])
 
-	// خواندن بقیه
-	if err := binary.Read(reader, binary.BigEndian, &packet.Handshake); err != nil {
-		return errors.New("failed to read client handshake: " + err.Error())
-	}
-	return h.processHandshake(reader, conn, dispatcher, ctx, packet.Handshake)
+	return h.processHandshake(reader, conn, dispatcher, ctx, clientHS)
 }
 
 func (h *Handler) handleReflexHTTP(reader *bufio.Reader, conn stat.Connection, dispatcher routing.Dispatcher, ctx context.Context) error {
@@ -117,39 +119,48 @@ func (h *Handler) handleReflexHTTP(reader *bufio.Reader, conn stat.Connection, d
 }
 
 func (h *Handler) processHandshake(reader *bufio.Reader, conn stat.Connection, dispatcher routing.Dispatcher, ctx context.Context, clientHS reflex.ClientHandshake) error {
-	// احراز هویت
+	// ۱. احراز هویت
 	user, err := h.authenticateUser(clientHS.UserID)
 	if err != nil {
-		// اگر احراز هویت ناموفق بود، به fallback برو
 		return h.handleFallback(ctx, reader, conn)
 	}
 
-	// تولید کلید موقت سرور
-	serverPrivateKey, serverPublicKey, err2 := reflex.GenerateKeyPair()
-	if err2 != nil {
-		return err2
+	// ۲. تولید کلید موقت سرور
+	serverPrivateKey, serverPublicKey, err := reflex.GenerateKeyPair()
+	if err != nil {
+		return err
 	}
 
-	// محاسبه کلید مشترک
+	// ۳. محاسبه کلید مشترک و Session Key
 	sharedKey := reflex.DeriveSharedKey(serverPrivateKey, clientHS.PublicKey)
-	sessionKey, err := reflex.DeriveSessionKey(sharedKey, []byte("reflex-session"))
 
-	// ارسال پاسخ handshake (شبیه HTTP 200)
-	serverHS := reflex.ServerHandshake{
-		PublicKey: serverPublicKey,
-		// باید این تابع رو خودت پیاده‌سازی کنی:
-		PolicyGrant: h.encryptPolicyGrant(user, sessionKey), // policy grant رو رمزنگاری کن
-		//PolicyGrant: []byte{}, // placeholder - باید پیاده‌سازی بشه
+	// نکته مهم: سالت باید دقیقاً مشابه کلاینت باشد (Nonce + UserID)
+	salt := append(clientHS.Nonce[:], clientHS.UserID[:]...)
+	sessionKey, err := reflex.DeriveSessionKey(sharedKey, salt)
+	if err != nil {
+		return err
 	}
 
-	// ارسال پاسخ (شبیه HTTP 200)
-	response := h.formatHTTPResponse(serverHS)
-	_, err3 := conn.Write(response)
-	if err3 != nil {
-		return err3
+	// ۴. آماده‌سازی و رمزنگاری Policy Grant
+	// یک پالیسی فرضی (مثلاً "access:all")
+	policyData := []byte("access:granted")
+	encryptedPolicy, err := h.encryptPolicyGrant(policyData, sessionKey)
+	if err != nil {
+		return err
 	}
 
-	// حالا جلسه برقرار شده، می‌تونیم داده‌ها رو پردازش کنیم
+	// ۵. ارسال پاسخ باینری به کلاینت (طبق انتظار Outbound)
+	// فرمت: [32B ServerPubKey][2B PolicyLen][EncryptedPolicy]
+	response := make([]byte, 32+2+len(encryptedPolicy))
+	copy(response[0:32], serverPublicKey[:])
+	binary.BigEndian.PutUint16(response[32:34], uint16(len(encryptedPolicy)))
+	copy(response[34:], encryptedPolicy)
+
+	if _, err := conn.Write(response); err != nil {
+		return err
+	}
+
+	// ۶. ورود به مرحله تبادل دیتای رمز شده (Step 3)
 	return h.handleSession(ctx, reader, conn, dispatcher, sessionKey, user)
 }
 
@@ -161,10 +172,8 @@ func (h *Handler) handleFallback(ctx context.Context, reader *bufio.Reader, conn
 	return nil
 }
 
-func (h *Handler) authenticateUser(id [16]byte) (interface{}, interface{}) {
-	// تبدیل [16]byte به string UUID
+func (h *Handler) authenticateUser(id [16]byte) (*protocol.MemoryUser, error) {
 	userIDStr := uuid.UUID(id).String()
-
 	for _, user := range h.clients {
 		if user.Account.(*MemoryAccount).Id == userIDStr {
 			return user, nil
@@ -173,8 +182,14 @@ func (h *Handler) authenticateUser(id [16]byte) (interface{}, interface{}) {
 	return nil, errors.New("user not found")
 }
 
-func (h *Handler) encryptPolicyGrant(user interface{}, key []byte) []byte {
-	return nil
+func (h *Handler) encryptPolicyGrant(data []byte, key []byte) ([]byte, error) {
+	aead, err := reflex.NewCipher(key)
+	if err != nil {
+		return nil, err
+	}
+	// استفاده از نانس صفر برای اولین بسته (طبق توافق با کلاینت)
+	nonce := make([]byte, aead.NonceSize())
+	return aead.Seal(nil, nonce, data, nil), nil
 }
 
 func (h *Handler) formatHTTPResponse(hs reflex.ServerHandshake) []byte {

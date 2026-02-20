@@ -53,7 +53,7 @@ func (h *Handler) Process(ctx context.Context, link *transport.Link, dialer inte
 		return err
 	}
 
-	// Bidirectional relay with encryption
+	// Bidirectional relay  with encryption
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel() // Ensure resources are freed
 
