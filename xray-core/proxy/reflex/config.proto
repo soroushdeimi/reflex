@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+package reflex.proxy;
+option go_package = "github.com/xtls/xray-core/proxy/reflex";
+
+// User represents a client configuration
+message User {
+  string id = 1;  // UUID of the user
+  string policy = 2;  // Traffic policy (e.g., "http2-api", "youtube", "zoom")
+}
+
+// Account represents user credentials
+message Account {
+  string id = 1;  // UUID of the user
+}
+
+// InboundConfig represents server-side configuration
+message InboundConfig {
+  repeated User clients = 1;  // List of authorized clients
+  Fallback fallback = 2;  // Fallback configuration
+}
+
+// Fallback configuration for non-Reflex traffic
+message Fallback {
+  uint32 dest = 1;  // Destination port for fallback (e.g., 80)
+  string addr = 2;  // Destination address for fallback (optional)
+}
+
+// OutboundConfig represents client-side configuration
+message OutboundConfig {
+  string address = 1;  // Server address
+  uint32 port = 2;  // Server port
+  string id = 3;  // Client UUID
+  string policy = 4;  // Traffic morphing policy
+}
