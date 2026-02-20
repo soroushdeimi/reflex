@@ -226,11 +226,13 @@ func (h *Handler) handleReflexHandshake(ctx context.Context, reader *bufio.Reade
 		return newError("failed to derive shared key").Base(err)
 	}
 
-	// Generate server nonce
-	serverNonce, err := reflex.GenerateNonce()
-	if err != nil {
-		return newError("failed to generate nonce").Base(err)
-	}
+	// Use single timestamp for both nonce and handshake
+	ts := time.Now().Unix()
+
+	// Build serverNonce from timestamp (same logic as client)
+	var serverNonce [16]byte
+	binary.BigEndian.PutUint64(serverNonce[0:8], uint64(ts))
+	binary.BigEndian.PutUint64(serverNonce[8:16], uint64(ts))
 
 	// Derive session keys
 	sessionKeys, err := reflex.DeriveSessionKeys(sharedKey, clientHS.Nonce, serverNonce)
@@ -241,7 +243,7 @@ func (h *Handler) handleReflexHandshake(ctx context.Context, reader *bufio.Reade
 	// Create server handshake response
 	serverHS := &reflex.ServerHandshake{
 		PublicKey:   serverPub,
-		Timestamp:   time.Now().Unix(),
+		Timestamp:   ts,
 		PolicyGrant: []byte{},
 	}
 
