@@ -32,4 +32,6 @@ message OutboundConfig {
   string address = 1;
   uint32 port = 2;
   string id = 3;
+  bool enable_traffic_morphing = 4;
+  string default_profile = 5;
 }

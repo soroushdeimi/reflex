@@ -21,19 +21,29 @@ import (
 	"github.com/xtls/xray-core/transport/internet"
 )
 
+// Handler is the outbound handler for Reflex protocol
 type Handler struct {
-	policyManager policy.Manager
-	config        *reflex.OutboundConfig
+	policyManager   policy.Manager
+	config          *reflex.OutboundConfig
+	morphingProfile *reflex.TrafficProfile
+	stats           *reflex.TrafficStats
 }
 
+// New creates a new Reflex outbound handler
 func New(ctx context.Context, config *reflex.OutboundConfig) (*Handler, error) {
 	v := core.MustFromContext(ctx)
-	return &Handler{
-		policyManager: v.GetFeature(policy.ManagerType()).(policy.Manager),
-		config:        config,
-	}, nil
+
+	handler := &Handler{
+		policyManager:   v.GetFeature(policy.ManagerType()).(policy.Manager),
+		config:          config,
+		morphingProfile: reflex.GetProfileByName(config.DefaultProfile),
+		stats:           reflex.NewTrafficStats(),
+	}
+
+	return handler, nil
 }
 
+// Process handles outbound connection
 func (h *Handler) Process(ctx context.Context, link *transport.Link, dialer internet.Dialer) error {
 	if h.config.Address == "" || h.config.Port == 0 {
 		return newError("server address not configured")
@@ -57,14 +67,20 @@ func (h *Handler) Process(ctx context.Context, link *transport.Link, dialer inte
 
 	timer := signal.CancelAfterInactivity(ctx, cancel, sessionPolicy.Timeouts.ConnectionIdle)
 
-	// Handshake
+	// Perform handshake
 	sessionKeys, err := h.performHandshake(ctx, conn)
 	if err != nil {
 		return newError("handshake failed").Base(err)
 	}
 
-	// Create session ONCE
-	sess, err := reflex.NewClientSession(sessionKeys)
+	// Create session with morphing support if enabled
+	var sess *reflex.Session
+	if h.config.EnableTrafficMorphing && h.morphingProfile != nil {
+		sess, err = reflex.NewClientSessionWithMorphing(sessionKeys, h.morphingProfile)
+	} else {
+		sess, err = reflex.NewClientSession(sessionKeys)
+	}
+
 	if err != nil {
 		return newError("failed to create session").Base(err)
 	}
@@ -86,6 +102,7 @@ func (h *Handler) Process(ctx context.Context, link *transport.Link, dialer inte
 	return nil
 }
 
+// performHandshake performs client-side handshake
 func (h *Handler) performHandshake(ctx context.Context, conn net.Conn) (*reflex.SessionKeys, error) {
 	clientPriv, clientPub, err := reflex.GenerateKeyPair()
 	if err != nil {
@@ -173,7 +190,7 @@ func (h *Handler) performHandshake(ctx context.Context, conn net.Conn) (*reflex.
 	return reflex.DeriveSessionKeys(sharedKey, clientNonce, serverNonce)
 }
 
-// handleUplink sends data to server (encrypted)
+// handleUplink sends data to server (encrypted with optional morphing)
 func (h *Handler) handleUplink(
 	ctx context.Context,
 	reader buf.Reader,
@@ -188,10 +205,25 @@ func (h *Handler) handleUplink(
 		}
 
 		for _, b := range mb {
-			if err := sess.WriteFrame(conn, reflex.FrameTypeData, b.Bytes(), false); err != nil {
-				b.Release()
-				return newError("failed to write frame").Base(err)
+			var writeErr error
+
+			// Use morphing writer if enabled
+			if h.config.EnableTrafficMorphing && sess.IsMorphingEnabled() {
+				writeErr = sess.WriteFrameWithMorphing(conn, reflex.FrameTypeData, b.Bytes(), false)
+			} else {
+				writeErr = sess.WriteFrame(conn, reflex.FrameTypeData, b.Bytes(), false)
 			}
+
+			if writeErr != nil {
+				b.Release()
+				return newError("failed to write frame").Base(writeErr)
+			}
+
+			// Record traffic stats if enabled
+			if h.config.EnableTrafficMorphing {
+				h.stats.RecordPacket(len(b.Bytes()), 0)
+			}
+
 			b.Release()
 		}
 	}
@@ -219,10 +251,19 @@ func (h *Handler) handleDownlink(
 				return newError("failed to write data").Base(err)
 			}
 
+			// Record traffic stats if enabled
+			if h.config.EnableTrafficMorphing {
+				h.stats.RecordPacket(len(frame.Payload), 0)
+			}
+
 		case reflex.FrameTypeClose:
 			return nil
 
 		case reflex.FrameTypePadding, reflex.FrameTypeTiming:
+			// Handle control frames for dynamic morphing
+			if err := sess.HandleControlFrame(frame); err != nil {
+				return newError("failed to handle control frame").Base(err)
+			}
 			continue
 
 		default:
@@ -231,6 +272,22 @@ func (h *Handler) handleDownlink(
 	}
 }
 
+// GetTrafficStats returns collected traffic statistics
+func (h *Handler) GetTrafficStats() *reflex.TrafficStats {
+	return h.stats
+}
+
+// SetMorphingProfile sets traffic morphing profile
+func (h *Handler) SetMorphingProfile(profile *reflex.TrafficProfile) {
+	h.morphingProfile = profile
+}
+
+// GetMorphingProfile returns current morphing profile
+func (h *Handler) GetMorphingProfile() *reflex.TrafficProfile {
+	return h.morphingProfile
+}
+
+// newError creates error with context
 func newError(values ...interface{}) *errors.Error {
 	return errors.New(values...).AtWarning()
 }

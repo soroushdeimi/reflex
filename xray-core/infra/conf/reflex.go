@@ -18,7 +18,9 @@ type ReflexServerTarget struct {
 }
 
 type ReflexClientConfig struct {
-	Servers []*ReflexServerTarget `json:"servers"`
+	Servers               []*ReflexServerTarget `json:"servers"`
+	EnableTrafficMorphing bool                  `json:"enableTrafficMorphing"` // جدید
+	DefaultProfile        string                `json:"defaultProfile"`        // جدید
 }
 
 type ReflexUserConfig struct {
@@ -52,6 +54,10 @@ func (c *ReflexClientConfig) Build() (proto.Message, error) {
 	if len(server.Users) > 0 {
 		config.Id = server.Users[0].ID
 	}
+
+	// اضافه کردن فیلدهای جدید
+	config.EnableTrafficMorphing = c.EnableTrafficMorphing
+	config.DefaultProfile = c.DefaultProfile
 
 	return config, nil
 }

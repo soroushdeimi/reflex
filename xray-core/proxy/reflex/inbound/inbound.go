@@ -28,11 +28,13 @@ import (
 
 // Handler is the inbound handler for Reflex protocol
 type Handler struct {
-	policyManager policy.Manager
-	validator     *Validator
-	fallback      *FallbackConfig
-	config        *reflex.InboundConfig
-	protocolDet   *reflex.ProtocolDetector
+	policyManager   policy.Manager
+	validator       *Validator
+	fallback        *FallbackConfig
+	config          *reflex.InboundConfig
+	protocolDet     *reflex.ProtocolDetector
+	morphingProfile *reflex.TrafficProfile
+	stats           *reflex.TrafficStats
 }
 
 // FallbackConfig holds fallback configuration
@@ -58,6 +60,7 @@ func NewValidator() *Validator {
 func (v *Validator) Add(user *protocol.MemoryUser) error {
 	v.Lock()
 	defer v.Unlock()
+
 	account := user.Account.(*MemoryAccount)
 	v.users[account.ID] = user
 	return nil
@@ -67,6 +70,7 @@ func (v *Validator) Add(user *protocol.MemoryUser) error {
 func (v *Validator) Get(userID string) (*protocol.MemoryUser, bool) {
 	v.RLock()
 	defer v.RUnlock()
+
 	user, found := v.users[userID]
 	return user, found
 }
@@ -96,10 +100,12 @@ func New(ctx context.Context, config *reflex.InboundConfig) (*Handler, error) {
 	v := core.MustFromContext(ctx)
 
 	handler := &Handler{
-		policyManager: v.GetFeature(policy.ManagerType()).(policy.Manager),
-		validator:     NewValidator(),
-		config:        config,
-		protocolDet:   reflex.NewProtocolDetector(),
+		policyManager:   v.GetFeature(policy.ManagerType()).(policy.Manager),
+		validator:       NewValidator(),
+		config:          config,
+		protocolDet:     reflex.NewProtocolDetector(),
+		morphingProfile: reflex.GetProfileByName(config.DefaultProfile),
+		stats:           reflex.NewTrafficStats(),
 	}
 
 	// Add users to validator
@@ -266,14 +272,22 @@ func (h *Handler) handleReflexHandshake(ctx context.Context, reader *bufio.Reade
 	inbound.Name = "reflex"
 	inbound.User = user
 
-	// Handle session
+	// Handle session with morphing
 	return h.handleSession(ctx, reader, conn, dispatcher, sessionKeys)
 }
 
-// handleSession handles established session with encryption
+// handleSession handles established session with encryption and morphing
 func (h *Handler) handleSession(ctx context.Context, reader *bufio.Reader, conn stat.Connection, dispatcher routing.Dispatcher, keys *reflex.SessionKeys) error {
-	// Create encrypted session
-	sess, err := reflex.NewServerSession(keys)
+	// Create encrypted session with optional morphing
+	var sess *reflex.Session
+	var err error
+
+	if h.config.EnableTrafficMorphing && h.morphingProfile != nil {
+		sess, err = reflex.NewServerSessionWithMorphing(keys, h.morphingProfile)
+	} else {
+		sess, err = reflex.NewServerSession(keys)
+	}
+
 	if err != nil {
 		return newError("failed to create session").Base(err)
 	}
@@ -344,10 +358,19 @@ func (h *Handler) handleUplink(reader *bufio.Reader, writer buf.Writer, sess *re
 				return newError("failed to write uplink data").Base(err)
 			}
 
+			// Record traffic stats if enabled
+			if h.config.EnableTrafficMorphing {
+				h.stats.RecordPacket(len(frame.Payload), 0)
+			}
+
 		case reflex.FrameTypeClose:
 			return nil
 
 		case reflex.FrameTypePadding, reflex.FrameTypeTiming:
+			// Handle control frames for dynamic morphing
+			if err := sess.HandleControlFrame(frame); err != nil {
+				return newError("failed to handle control frame").Base(err)
+			}
 			continue
 
 		default:
@@ -366,10 +389,25 @@ func (h *Handler) handleDownlink(conn stat.Connection, reader buf.Reader, sess *
 		}
 
 		for _, b := range mb {
-			if err := sess.WriteFrame(conn, reflex.FrameTypeData, b.Bytes(), true); err != nil {
-				b.Release()
-				return newError("failed to write downlink data").Base(err)
+			var writeErr error
+
+			// Use morphing writer if enabled
+			if h.config.EnableTrafficMorphing && sess.IsMorphingEnabled() {
+				writeErr = sess.WriteFrameWithMorphing(conn, reflex.FrameTypeData, b.Bytes(), true)
+			} else {
+				writeErr = sess.WriteFrame(conn, reflex.FrameTypeData, b.Bytes(), true)
 			}
+
+			if writeErr != nil {
+				b.Release()
+				return newError("failed to write downlink data").Base(writeErr)
+			}
+
+			// Record traffic stats if enabled
+			if h.config.EnableTrafficMorphing {
+				h.stats.RecordPacket(len(b.Bytes()), 0)
+			}
+
 			b.Release()
 		}
 	}
@@ -399,6 +437,21 @@ func (h *Handler) handleFallback(ctx context.Context, reader *bufio.Reader, conn
 	}
 
 	return nil
+}
+
+// GetTrafficStats returns collected traffic statistics
+func (h *Handler) GetTrafficStats() *reflex.TrafficStats {
+	return h.stats
+}
+
+// SetMorphingProfile sets traffic morphing profile
+func (h *Handler) SetMorphingProfile(profile *reflex.TrafficProfile) {
+	h.morphingProfile = profile
+}
+
+// GetMorphingProfile returns current morphing profile
+func (h *Handler) GetMorphingProfile() *reflex.TrafficProfile {
+	return h.morphingProfile
 }
 
 // newError creates error with context
