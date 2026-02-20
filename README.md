@@ -25,12 +25,7 @@
 
 ## مستندات پیاده‌سازی
 
-پروژه ما شامل مستندات کامل برای build، test و deployment هست:
-
-- **[BUILD.md](BUILD.md)**: راهنمای کامل build و deployment
-- **[TESTING.md](TESTING.md)**: راهنمای تست و debugging
-- **[IMPLEMENTATION.md](IMPLEMENTATION.md)**: توضیحات معماری و implementation
-- **[SUBMISSION.md](SUBMISSION.md)**: خلاصه پیاده‌سازی و تحویل پروژه
+جزئیات کامل پیاده‌سازی در [SUBMISSION.md](SUBMISSION.md) موجود است.
 
 ## فایل‌های پیکربندی
 
