@@ -79,4 +79,8 @@ import (
 
 	// Commands
 	_ "github.com/xtls/xray-core/main/commands/all"
+
+	// Reflex
+	_ "github.com/xtls/xray-core/proxy/reflex/inbound"
+	_ "github.com/xtls/xray-core/proxy/reflex/outbound"
 )

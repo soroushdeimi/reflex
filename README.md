@@ -1,57 +1,187 @@
-# پروژه Reflex -
+# Reflex Protocol Implementation - Danial Darroudy & Mohammad Mohsen Abbas Zade & Seyyed Hossein Ahmadi Mosavi
 
-## چیه این پروژه؟
-
-پروژه Reflex یک پروتکل پراکسی جدید برای Xray-Core هست که سعی می‌کنه مشکلات پروتکل‌های قبلی مثل VMess و VLESS رو حل کنه. هدف اصلی اینه که ترافیک پراکسی رو غیرقابل تشخیص کنیم - یعنی سانسورچی نتونه بفهمه که این ترافیک پراکسی هست.
-
-## چیکار باید بکنید؟
-
-شما باید پروتکل Reflex رو در Xray-Core پیاده‌سازی کنید. این کار در چند مرحله انجام می‌شه:
-
-1. **مرحله 1**: ساختار اولیه پروتکل (پکیج، config، handler اولیه)
-2. **مرحله 2**: پیاده‌سازی handshake و احراز هویت
-3. **مرحله 3**: رمزنگاری و پردازش بسته‌ها
-4. **مرحله 4**: fallback به وب‌سرور (مثل Trojan)
-5. **مرحله 5**: قابلیت‌های پیشرفته (Traffic Morphing و ...)
-
-## چطوری شروع کنید؟
-
-1. اول [راه‌اندازی محیط](docs/setup.md) رو بخونید و Go و Git رو نصب کنید
-2. ریپو Reflex رو کلون کنید (که شامل Xray-Core هست) و بیلد اولیه رو تست کنید
-3. [پروتکل Reflex](docs/protocol.md) رو بخونید تا بفهمید چطوری کار می‌کنه
-4. مرحله به مرحله پیش برید: [Step 1](docs/step1-basic.md) → [Step 2](docs/step2-handshake.md) → [Step 3](docs/step3-encryption.md) → [Step 4](docs/step4-fallback.md) → [Step 5](docs/step5-advanced.md)
-5. [تست کنید](docs/testing.md) که همه چیز درست کار می‌کنه
-6. [تحویل بدید](docs/submission.md) - یک برنچ بسازید و PR بزنید
-
-## نمره‌دهی (120 نمره)
-
-### پیاده‌سازی (80 نمره)
-- **Step 1 - Basic Structure**: 10 نمره
-- **Step 2 - Handshake**: 15 نمره
-- **Step 3 - Encryption**: 15 نمره
-- **Step 4 - Fallback**: 15 نمره
-- **Step 5 - Advanced**: 20 نمره (15 نمره اجباری + 5 نمره امتیازی)
-
-### تست‌ها (20 نمره)
-- تست‌های واحد: 10 نمره
-- تست‌های یکپارچگی: 10 نمره
-
-### کد و مستندات (20 نمره)
-- کیفیت کد و خوانایی: 10 نمره
-- مستندات و کامنت‌ها: 10 نمره
-
-جزئیات بیشتر در [فایل تحویل](docs/submission.md) هست.
-
-## منابع
-
-- [Xray-Core Repository](https://github.com/XTLS/Xray-core)
-- [Go Documentation](https://go.dev/doc/)
-- [Protocol Specification](docs/protocol.md)
-
-## سوال دارید؟
-
-اگر مشکلی پیش اومد یا سوالی دارید، اول [FAQ](docs/FAQ.md) رو چک کنید. اگر جوابتون رو پیدا نکردید، از من بپرسید
+## Student Information
+- Name: Danial Darroudy
+- Student ID: 401100371
+- Name: Mohammad Mohsen Abbas Zade
+- Student ID: 401100433
+- Name: Seyyed Hossein Ahmadi Mosavi
+- Student ID: 402100334
 ---
 
-**موفق باشید!** 
+## Project Overview
+
+This project implements the **Reflex protocol** inside Xray-Core.
+
+Reflex is a custom proxy protocol with:
+
+- Implicit handshake (X25519 key exchange)
+- UUID-based authentication
+- AEAD encryption (ChaCha20-Poly1305)
+- Frame-based transport
+- Replay protection
+- Fallback mechanism (Trojan-like behavior)
+- Traffic Morphing (statistical disguise)
+
+The protocol is designed to resist traffic fingerprinting and DPI detection.
+
+---
+
+# Implemented Features
+
+## ✅ Step 1 - Basic Structure
+
+- Created `proxy/reflex` package
+- Implemented `config.proto`
+- Generated `config.pb.go`
+- Implemented inbound and outbound handlers
+- Registered protocol inside Xray
+
+---
+
+## ✅ Step 2 - Handshake
+
+- X25519 key exchange
+- Shared key derivation
+- Session key generation via HKDF
+- UUID authentication
+- Timestamp validation (anti-replay)
+- Proper error handling
+
+---
+
+## ✅ Step 3 - Encryption
+
+- Frame structure:
+    - Length (2 bytes)
+    - Type (1 byte)
+    - Encrypted payload
+- AEAD: ChaCha20-Poly1305
+- Read/Write frame implementation
+- Nonce-based replay protection
+- Directional session keys
+
+---
+
+## ✅ Step 4 - Fallback & Multiplexing
+
+- Protocol detection using `bufio.Peek`
+- Reflex magic detection
+- HTTP detection
+- TLS detection
+- Fallback to local web server
+- Single port multiplexing (Reflex + HTTP)
+
+---
+
+## ✅ Step 5 - Advanced (Traffic Morphing)
+
+### Mandatory features implemented:
+
+- TrafficProfile structure
+- Statistical packet size distribution
+- Statistical delay distribution
+- Dynamic padding
+- Timing morphing
+- PADDING_CTRL frame support
+- TIMING_CTRL frame support
+- Profile creation from samples
+- KS statistical test
+
+### Profiles implemented:
+
+- YouTube-like
+- Zoom-like
+- HTTP/2 API-like
+- Generic
+
+### Extra (Bonus)
+
+- KS-test statistical comparison
+- Traffic statistics collector
+- Replay protection testing
+- Full unit test coverage
+- Race-safe implementation
+
+---
+
+# How To Build
+
+```bash
+cd xray-core
+go mod tidy
+go build -o xray.exe ./main
+```
+
+# How To Run
+
+Example config:
+```bash
+./xray.exe -config config.example.json
+```
+# Testing
+Run tests:
+```bash
+go test ./proxy/reflex/... -v
+go test -race ./proxy/reflex/...
+```
+Lint:
+```bash
+golangci-lint run ./proxy/reflex/...
+```
+# Problems Faced & Solutions
+## 1️⃣ Handshake Synchronization
+### Problem:
+Nonce mismatch between client and server.
+
+### Solution:
+Unified nonce generation logic and synchronized timestamp-based nonce derivation.
+
+## 2️⃣ Replay Protection Issues
+### Problem:
+Duplicate frame detection triggered incorrectly during testing.
+
+### Solution:
+Implemented proper NonceCache with sliding window cleanup.
+
+## 3️⃣ Traffic Morphing Overhead
+### Problem:
+Large delays caused performance degradation.
+
+### Solution:
+Optimized cumulative weight calculation and controlled delay application only between chunks.
+
+## 4️⃣ Frame Parsing Edge Cases
+### Problem:
+Malformed frames caused panic.
+
+### Solution:
+Added strict validation and error returns for:
+
+- Invalid frame type
+- Short header
+- Oversized handshake
+## 5️⃣ Fallback Byte Consumption
+### Problem:
+Peeked bytes were lost during fallback.
+
+### Solution:
+Implemented `FallbackConn` wrapper to preserve buffered bytes.
+
+# Security Considerations
+- AEAD encryption
+- HKDF key derivation
+- Replay protection
+- Timestamp validation
+- No plaintext handshake markers (optional HTTP disguise supported)
+- Strict frame validation
+
+# Final Status
+- ✅ All steps implemented
+- ✅ Unit tests written
+- ✅ Replay protection tested
+- ✅ Morphing implemented
+- ✅ Fallback working
+- ✅ Clean build
+- ✅ Race detection safe
 
