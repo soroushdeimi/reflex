@@ -26,3 +26,17 @@ func NewSession(key byte[]) (*Session, error) {
     writeNonce:  0,
   }, nil
 }
+
+// Encrypt: encrypts data using ChaCha20-Poly1305
+func (s *Session) Encrypt(plaintext []byte) ([]byte, error) {
+  // makr 12 byte nonce, last 8 bytes are writeNonce
+  nonce := make([]byte, s.aead.NonceSize())
+  binary.BigEndian.PutUint64(nonce[4:], s.writeNonce)
+  s.writeNonce++
+  // encrypts thhe data
+  ciphertext := s.aead.Seal(nil, nonce, plaintext, nil)
+  return ciphertext, nil
+}
+
+
+  
