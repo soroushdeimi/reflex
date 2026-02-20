@@ -32,34 +32,45 @@ func TestFallbackConn(t *testing.T) {
 
 	// Buffer with peeked data
 	peeked := []byte("peeked-")
+	// Combine peeked data and raw data
 	br := bufio.NewReader(io.MultiReader(bytes.NewReader(peeked), raw))
-
 	fc := NewFallbackConn(br, raw)
 
 	// Test Read (should include peeked data)
-	buf := make([]byte, 16)
-	n, err := fc.Read(buf)
-	if err != nil || string(buf[:n]) != "peeked-real-data" {
-		t.Errorf("Read failed: got %s", string(buf[:n]))
+	expected := "peeked-real-data"
+	buf := make([]byte, len(expected))
+
+	// Use io.ReadFull to ensure we get all staged data from bufio
+	n, err := io.ReadFull(fc, buf)
+	if err != nil {
+		t.Fatalf("Read failed: %v", err)
+	}
+
+	if string(buf[:n]) != expected {
+		t.Errorf("Read content mismatch: got [%s], expected [%s]", string(buf[:n]), expected)
 	}
 
 	// Test Write
 	data := []byte("to-server")
-	fc.Write(data)
+	_, err = fc.Write(data)
+	if err != nil {
+		t.Fatalf("Write failed: %v", err)
+	}
 	if raw.writeBuf.String() != "to-server" {
-		t.Errorf("Write failed")
+		t.Errorf("Write data mismatch: got %s", raw.writeBuf.String())
 	}
 
 	// Test Close
 	fc.Close()
 	if !raw.closed {
-		t.Error("Close was not propagated")
+		t.Error("Close was not propagated to raw connection")
 	}
 
 	// Test Read after close
-	_, err = fc.Read(buf)
+	retryBuf := make([]byte, 16)
+	_, err = fc.Read(retryBuf)
 	if err != io.EOF {
-		t.Error("Expected EOF after close")
+		t.Errorf("Expected EOF after close, got %v", err)
 	}
 }
 
