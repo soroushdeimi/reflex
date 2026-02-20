@@ -7,31 +7,30 @@ import (
 	"github.com/xtls/xray-core/common/net"
 )
 
-// EncodeDestination encodes destination into bytes
 func EncodeDestination(dest net.Destination) []byte {
-	// Format: [address_type:1][address_length:1][address][port:2]
 	var buf []byte
 
-	// Address type (1 = IPv4, 2 = IPv6, 3 = Domain)
-	addrBytes := dest.Address.IP()
-	if addrBytes != nil {
-		if len(addrBytes) == 4 {
-			buf = append(buf, 1) // IPv4
-			buf = append(buf, 4) // Length
-			buf = append(buf, addrBytes...)
-		} else {
-			buf = append(buf, 2)  // IPv6
-			buf = append(buf, 16) // Length
-			buf = append(buf, addrBytes...)
-		}
-	} else {
+	switch dest.Address.Family() {
+
+	case net.AddressFamilyIPv4:
+		ip := dest.Address.IP()
+		buf = append(buf, 1)
+		buf = append(buf, 4)
+		buf = append(buf, ip...)
+
+	case net.AddressFamilyIPv6:
+		ip := dest.Address.IP()
+		buf = append(buf, 2)
+		buf = append(buf, 16)
+		buf = append(buf, ip...)
+
+	case net.AddressFamilyDomain:
 		domain := dest.Address.Domain()
-		buf = append(buf, 3) // Domain
+		buf = append(buf, 3)
 		buf = append(buf, byte(len(domain)))
 		buf = append(buf, []byte(domain)...)
 	}
 
-	// Port (2 bytes)
 	portBytes := make([]byte, 2)
 	binary.BigEndian.PutUint16(portBytes, uint16(dest.Port))
 	buf = append(buf, portBytes...)
