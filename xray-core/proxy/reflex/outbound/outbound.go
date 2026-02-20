@@ -4,10 +4,10 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/binary"
+	"io"
 	"time"
 
 	"github.com/xtls/xray-core/common"
-	"github.com/xtls/xray-core/common/buf"
 	"github.com/xtls/xray-core/common/net"
 	"github.com/xtls/xray-core/common/retry"
 	"github.com/xtls/xray-core/common/uuid"
@@ -49,7 +49,6 @@ func (h *Handler) Process(ctx context.Context, link *transport.Link, dialer inte
 }
 
 func (h *Handler) clientHandshake(conn net.Conn) ([]byte, error) {
-	// 1. Key generation
 	privKey, pubKey, err := reflex.GenerateKeyPair()
 	if err != nil {
 		return nil, err
@@ -60,51 +59,39 @@ func (h *Handler) clientHandshake(conn net.Conn) ([]byte, error) {
 		return nil, err
 	}
 
-	hs := &reflex.ClientHandshake{
-		PublicKey: pubKey,
-		UserID:    [16]byte(parsedUUID),
-		Timestamp: time.Now().Unix(),
-	}
-	if _, err := rand.Read(hs.Nonce[:]); err != nil {
+	// ۱. ارسال مجیک و تمام دیتای هندشیک در یک مرحله
+	fullPayload := make([]byte, 4+64) // 4 (Magic) + 64 (Handshake)
+
+	// Magic
+	binary.BigEndian.PutUint32(fullPayload[:4], reflex.ReflexMagic)
+
+	// Handshake Data (32 + 16 + 8 + 8)
+	copy(fullPayload[4:36], pubKey[:])
+	uid := [16]byte(parsedUUID)
+	copy(fullPayload[36:52], uid[:])
+	binary.BigEndian.PutUint64(fullPayload[52:60], uint64(time.Now().Unix()))
+	if _, err := rand.Read(fullPayload[60:68]); err != nil {
 		return nil, err
 	}
 
-	// 2. Send Reflex Magic
-	magic := make([]byte, 4)
-	binary.BigEndian.PutUint32(magic, reflex.ReflexMagic)
-	if _, err := conn.Write(magic); err != nil {
+	// نوشتن کل بسته به صورت یک‌جا
+	if _, err := conn.Write(fullPayload); err != nil {
 		return nil, err
 	}
 
-	// 3. Send Handshake Payload
-	hsBuf := buf.New()
-	defer hsBuf.Release()
-
-	// Handle two return values from Write
-	_, _ = hsBuf.Write(hs.PublicKey[:])
-	_, _ = hsBuf.Write(hs.UserID[:])
-
-	ts := make([]byte, 8)
-	binary.BigEndian.PutUint64(ts, uint64(hs.Timestamp))
-	_, _ = hsBuf.Write(ts)
-	_, _ = hsBuf.Write(hs.Nonce[:])
-
-	if _, err := conn.Write(hsBuf.Bytes()); err != nil {
-		return nil, err
-	}
-
-	// 4. Receive Server Public Key
-	sPubKeyRaw := make([]byte, 32)
-	if _, err := conn.Read(sPubKeyRaw); err != nil {
+	// ۲. دریافت پاسخ سرور (۳۲ بایت کلید عمومی)
+	respPubKey := make([]byte, 32)
+	if _, err := io.ReadFull(conn, respPubKey); err != nil {
 		return nil, err
 	}
 
 	var sPubKey [32]byte
-	copy(sPubKey[:], sPubKeyRaw)
+	copy(sPubKey[:], respPubKey)
 
-	// 5. Derive Session Key
+	// ۳. استخراج کلید
 	shared := reflex.DeriveSharedKey(privKey, sPubKey)
-	salt := append(hs.Nonce[:], hs.UserID[:]...)
+	// استفاده از نانس ارسالی در سالت (بایت ۶۰ تا ۶۸)
+	salt := append(fullPayload[60:68], uid[:]...)
 	return reflex.DeriveSessionKey(shared, salt)
 }
 
