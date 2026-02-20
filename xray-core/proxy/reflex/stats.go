@@ -229,12 +229,13 @@ func percentileDuration(values []time.Duration, p float64) time.Duration {
 }
 
 // KolmogorovSmirnovTest performs KS test between two distributions
+// Returns the KS statistic (max difference between ECDFs)
 func KolmogorovSmirnovTest(sample1, sample2 []int) float64 {
 	if len(sample1) == 0 || len(sample2) == 0 {
 		return 1.0
 	}
 
-	// Create empirical CDFs
+	// Sort both samples
 	s1 := make([]int, len(sample1))
 	s2 := make([]int, len(sample2))
 	copy(s1, sample1)
@@ -242,27 +243,43 @@ func KolmogorovSmirnovTest(sample1, sample2 []int) float64 {
 	sort.Ints(s1)
 	sort.Ints(s2)
 
-	// Calculate KS statistic
-	maxDiff := 0.0
-	i, j := 0, 0
+	n1 := float64(len(s1))
+	n2 := float64(len(s2))
 
-	for i < len(s1) && j < len(s2) {
-		if s1[i] <= s2[j] {
-			cdf1 := float64(i+1) / float64(len(s1))
-			cdf2 := float64(j) / float64(len(s2))
-			diff := math.Abs(cdf1 - cdf2)
-			if diff > maxDiff {
-				maxDiff = diff
-			}
-			i++
+	maxDiff := 0.0
+	i1, i2 := 0, 0
+
+	// Iterate through both sorted arrays
+	for i1 < len(s1) || i2 < len(s2) {
+		var currentValue int
+
+		// Determine current value to evaluate
+		if i1 < len(s1) && (i2 >= len(s2) || s1[i1] <= s2[i2]) {
+			currentValue = s1[i1]
+		} else if i2 < len(s2) {
+			currentValue = s2[i2]
 		} else {
-			cdf1 := float64(i) / float64(len(s1))
-			cdf2 := float64(j+1) / float64(len(s2))
-			diff := math.Abs(cdf1 - cdf2)
-			if diff > maxDiff {
-				maxDiff = diff
-			}
-			j++
+			break
+		}
+
+		// Advance i1 to include all values <= currentValue
+		for i1 < len(s1) && s1[i1] <= currentValue {
+			i1++
+		}
+
+		// Advance i2 to include all values <= currentValue
+		for i2 < len(s2) && s2[i2] <= currentValue {
+			i2++
+		}
+
+		// Calculate empirical CDFs at currentValue
+		cdf1 := float64(i1) / n1
+		cdf2 := float64(i2) / n2
+
+		// Update max difference
+		diff := math.Abs(cdf1 - cdf2)
+		if diff > maxDiff {
+			maxDiff = diff
 		}
 	}
 
