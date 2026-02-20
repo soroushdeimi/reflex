@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"io"
+	"strconv"
 
 	"github.com/xtls/xray-core/common"
 	"github.com/xtls/xray-core/common/net"
@@ -71,12 +72,6 @@ func (h *Handler) Process(ctx context.Context, network net.Network, conn stat.Co
         }
     }
     
-    // // چک کردن HTTP POST-like
-    // // باید این تابع رو خودت پیاده‌سازی کنی (در step4 توضیح داده شده)
-    // if h.isHTTPPostLike(peeked) {
-    //     return h.handleReflexHTTP(reader, conn, dispatcher, ctx)
-    // }
-    
     // // هیچکدوم نبود - به fallback بفرست
     // return h.handleFallback(ctx, reader, conn)
 
@@ -92,11 +87,11 @@ func (h *Handler) handleReflexMagic(reader *bufio.Reader, conn stat.Connection, 
 	clientHS := &ClientHandshake{}
 
 	if _, err := io.ReadFull(reader, clientHS.PublicKey[:]); err != nil {
-		return nil
+		return err
 	}
 
 	if _, err := io.ReadFull(reader, clientHS.UserID[:]); err != nil {
-		return nil
+		return err
 	}
 
 	prLen := make([]byte, 2)
@@ -112,29 +107,14 @@ func (h *Handler) handleReflexMagic(reader *bufio.Reader, conn stat.Connection, 
 	}
 
 	if err := binary.Read(reader, binary.BigEndian, &clientHS.Timestamp); err != nil {
-		return nil
+		return err
 	}
 
 	if _, err := io.ReadFull(reader, clientHS.Nonce[:]); err != nil {
-		return nil
+		return err
 	}
     
     return h.processHandshake(reader, conn, dispatcher, ctx, *clientHS)
-}
-
-func (h *Handler) handleReflexHTTP(reader *bufio.Reader, conn stat.Connection, dispatcher routing.Dispatcher, ctx context.Context) error {
-    // Parse کردن HTTP POST request
-    // استخراج base64 encoded data
-    // decode کردن و parse کردن ClientHandshake
-    
-    // اینجا باید HTTP request رو parse کنی
-    // برای سادگی، می‌تونی از یه HTTP parser استفاده کنی
-    // یا خودت parse کنی
-    
-    var clientHS ClientHandshake
-    // ... parse کردن از HTTP POST
-    
-    return h.processHandshake(reader, conn, dispatcher, ctx, clientHS)
 }
 
 func (h *Handler) processHandshake(reader *bufio.Reader, conn stat.Connection, dispatcher routing.Dispatcher, ctx context.Context, clientHS ClientHandshake) error {
@@ -162,15 +142,16 @@ func (h *Handler) processHandshake(reader *bufio.Reader, conn stat.Connection, d
 
 	// Send HTTP response of ServerHandshake
 	body, _ := json.Marshal(serverHS)
-	conn.Write([]byte(
-		"HTTP/1.1 200 OK\r\n" +
-			"Content-Type: application/json\r\n\r\n",
-	))
+	response := "HTTP/1.1 200 OK\r\n" +
+		"Content-Type: application/json\r\n" +
+		"Content-Length: " + strconv.Itoa(len(body)) + "\r\n" +
+		"\r\n"
+
+	conn.Write([]byte(response))
 	conn.Write(body)
     
     // حالا جلسه برقرار شده، می‌تونیم داده‌ها رو پردازش کنیم
-    // return h.handleSession(ctx, reader, conn, dispatcher, sessionKey, user)
-	return nil // Todo: complete after implementing handleSession
+    return h.handleSession(ctx, reader, conn, dispatcher, sessionKey, user)
 }
 
 func init() {
