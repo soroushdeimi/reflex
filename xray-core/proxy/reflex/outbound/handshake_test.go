@@ -1,12 +1,16 @@
 package outbound
 
 import (
+	"bytes"
+	"encoding/binary"
 	"io"
 	"net"
 	"testing"
 	"time"
 
+	"github.com/xtls/xray-core/common/buf"
 	"github.com/xtls/xray-core/common/uuid"
+	"github.com/xtls/xray-core/proxy/reflex"
 )
 
 func TestFullHandshakeFlow(t *testing.T) {
@@ -60,4 +64,43 @@ func TestFullHandshakeFlow(t *testing.T) {
 		t.Fatal("Test TIMEOUT - Possible Deadlock!")
 	}
 	<-done
+}
+
+func TestDataEncryptionFlow(t *testing.T) {
+	clientConn, serverConn := net.Pipe()
+	defer clientConn.Close()
+	defer serverConn.Close()
+
+	key := make([]byte, 32)
+	aead, _ := reflex.NewCipher(key)
+
+	go func() {
+		header := make([]byte, 2)
+		if _, err := io.ReadFull(serverConn, header); err != nil {
+			return
+		}
+		length := binary.BigEndian.Uint16(header)
+
+		payload := make([]byte, length)
+		if _, err := io.ReadFull(serverConn, payload); err != nil {
+			return
+		}
+
+		nonce := make([]byte, aead.NonceSize())
+		decrypted, err := aead.Open(nil, nonce, payload, nil)
+		if err != nil {
+			t.Errorf("Decryption failed: %v", err)
+			return
+		}
+		t.Logf("Server received: %s", string(decrypted))
+	}()
+
+	h := &Handler{}
+
+	rawData := []byte("hello reflex")
+	reader := buf.NewReader(bytes.NewReader(rawData))
+
+	go h.encryptWrite(reader, clientConn, aead)
+
+	time.Sleep(200 * time.Millisecond)
 }

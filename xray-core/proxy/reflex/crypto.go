@@ -5,6 +5,8 @@ import (
 	"crypto/sha256"
 	"io"
 
+	"crypto/cipher"
+	"golang.org/x/crypto/chacha20poly1305"
 	"golang.org/x/crypto/curve25519"
 	"golang.org/x/crypto/hkdf"
 )
@@ -33,4 +35,8 @@ func DeriveSessionKey(sharedKey [32]byte, salt []byte) ([]byte, error) {
 		return nil, err
 	}
 	return sessionKey, nil
+}
+
+func NewCipher(key []byte) (cipher.AEAD, error) {
+	return chacha20poly1305.New(key)
 }
