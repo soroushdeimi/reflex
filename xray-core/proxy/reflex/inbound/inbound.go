@@ -1,7 +1,11 @@
 package inbound
 
 import (
+	"bufio"
 	"context"
+	"encoding/binary"
+	"encoding/json"
+	"io"
 
 	"github.com/xtls/xray-core/common"
 	"github.com/xtls/xray-core/common/net"
@@ -49,8 +53,124 @@ func (h *Handler) Network() []net.Network {
 }
 
 func (h *Handler) Process(ctx context.Context, network net.Network, conn stat.Connection, dispatcher routing.Dispatcher) error {
-    // اینجا بعداً منطق اصلی رو اضافه می‌کنیم
-    return nil
+    // Wrap connection در bufio.Reader برای peek
+    reader := bufio.NewReader(conn)
+    
+    // Peek کردن چند بایت اول
+    peeked, err := reader.Peek(64) // حداقل برای magic number یا HTTP header
+    if err != nil {
+        return err
+    }
+    
+    // چک کردن magic number (سریع‌تر)
+    if len(peeked) >= 4 {
+        magic := binary.BigEndian.Uint32(peeked[0:4])
+        if magic == ReflexMagic {
+            // Magic number پیدا شد - parse کن
+            return h.handleReflexMagic(reader, conn, dispatcher, ctx)
+        }
+    }
+    
+    // // چک کردن HTTP POST-like
+    // // باید این تابع رو خودت پیاده‌سازی کنی (در step4 توضیح داده شده)
+    // if h.isHTTPPostLike(peeked) {
+    //     return h.handleReflexHTTP(reader, conn, dispatcher, ctx)
+    // }
+    
+    // // هیچکدوم نبود - به fallback بفرست
+    // return h.handleFallback(ctx, reader, conn)
+
+	return nil // Todo: complete after implementing fallback
+}
+
+func (h *Handler) handleReflexMagic(reader *bufio.Reader, conn stat.Connection, dispatcher routing.Dispatcher, ctx context.Context) error {
+    // خواندن magic number (4 بایت)
+    magic := make([]byte, 4)
+    io.ReadFull(reader, magic)
+    
+    // خواندن handshake packet
+	clientHS := &ClientHandshake{}
+
+	if _, err := io.ReadFull(reader, clientHS.PublicKey[:]); err != nil {
+		return nil
+	}
+
+	if _, err := io.ReadFull(reader, clientHS.UserID[:]); err != nil {
+		return nil
+	}
+
+	prLen := make([]byte, 2)
+	if _, err := io.ReadFull(reader, prLen); err != nil {
+		return err
+	}
+	policyReqLen := binary.BigEndian.Uint16(prLen)
+	clientHS.PolicyReq = make([]byte, policyReqLen)
+	if policyReqLen > 0 {
+		if _, err := io.ReadFull(reader, clientHS.PolicyReq); err != nil {
+			return err
+		}
+	}
+
+	if err := binary.Read(reader, binary.BigEndian, &clientHS.Timestamp); err != nil {
+		return nil
+	}
+
+	if _, err := io.ReadFull(reader, clientHS.Nonce[:]); err != nil {
+		return nil
+	}
+    
+    return h.processHandshake(reader, conn, dispatcher, ctx, *clientHS)
+}
+
+func (h *Handler) handleReflexHTTP(reader *bufio.Reader, conn stat.Connection, dispatcher routing.Dispatcher, ctx context.Context) error {
+    // Parse کردن HTTP POST request
+    // استخراج base64 encoded data
+    // decode کردن و parse کردن ClientHandshake
+    
+    // اینجا باید HTTP request رو parse کنی
+    // برای سادگی، می‌تونی از یه HTTP parser استفاده کنی
+    // یا خودت parse کنی
+    
+    var clientHS ClientHandshake
+    // ... parse کردن از HTTP POST
+    
+    return h.processHandshake(reader, conn, dispatcher, ctx, clientHS)
+}
+
+func (h *Handler) processHandshake(reader *bufio.Reader, conn stat.Connection, dispatcher routing.Dispatcher, ctx context.Context, clientHS ClientHandshake) error {
+    // تولید کلید موقت سرور
+    serverPrivateKey, serverPublicKey, _ := generateKeyPair()
+    
+    // محاسبه کلید مشترک
+    sharedKey := deriveSharedKey(serverPrivateKey, clientHS.PublicKey)
+    sessionKey := deriveSessionKey(sharedKey, []byte("reflex-session"))
+    
+    // احراز هویت
+    user, err := h.authenticateUser(clientHS.UserID)
+    if err != nil {
+        // اگر احراز هویت ناموفق بود، به fallback برو
+        // return h.handleFallback(ctx, reader, conn)
+
+		return nil // Todo: complete after implementing fallback
+    }
+    
+    // ارسال پاسخ handshake (شبیه HTTP 200)
+    serverHS := ServerHandshake{
+        PublicKey: serverPublicKey,
+        PolicyGrant: []byte{},
+    }
+
+	// Send HTTP response of ServerHandshake
+	body, _ := json.Marshal(serverHS)
+	conn.Write([]byte(
+		"HTTP/1.1 200 OK\r\n" +
+			"Content-Type: application/json\r\n\r\n",
+	))
+	conn.Write(body)
+    
+    // حالا جلسه برقرار شده، می‌تونیم داده‌ها رو پردازش کنیم
+    // return h.handleSession(ctx, reader, conn, dispatcher, sessionKey, user)
+	return nil // Todo: complete after implementing handleSession
 }
 
 func init() {
