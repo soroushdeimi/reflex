@@ -5,14 +5,16 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"fmt"
 	"io"
+	"net"
 	"sync"
 	"time"
 
 	"github.com/xtls/xray-core/common"
 	"github.com/xtls/xray-core/common/buf"
 	"github.com/xtls/xray-core/common/errors"
-	"github.com/xtls/xray-core/common/net"
+	xnet "github.com/xtls/xray-core/common/net"
 	"github.com/xtls/xray-core/common/protocol"
 	"github.com/xtls/xray-core/common/session"
 	"github.com/xtls/xray-core/common/task"
@@ -30,6 +32,7 @@ type Handler struct {
 	validator     *Validator
 	fallback      *FallbackConfig
 	config        *reflex.InboundConfig
+	protocolDet   *reflex.ProtocolDetector
 }
 
 // FallbackConfig holds fallback configuration
@@ -55,7 +58,6 @@ func NewValidator() *Validator {
 func (v *Validator) Add(user *protocol.MemoryUser) error {
 	v.Lock()
 	defer v.Unlock()
-
 	account := user.Account.(*MemoryAccount)
 	v.users[account.ID] = user
 	return nil
@@ -65,7 +67,6 @@ func (v *Validator) Add(user *protocol.MemoryUser) error {
 func (v *Validator) Get(userID string) (*protocol.MemoryUser, bool) {
 	v.RLock()
 	defer v.RUnlock()
-
 	user, found := v.users[userID]
 	return user, found
 }
@@ -98,6 +99,7 @@ func New(ctx context.Context, config *reflex.InboundConfig) (*Handler, error) {
 		policyManager: v.GetFeature(policy.ManagerType()).(policy.Manager),
 		validator:     NewValidator(),
 		config:        config,
+		protocolDet:   reflex.NewProtocolDetector(),
 	}
 
 	// Add users to validator
@@ -126,12 +128,12 @@ func New(ctx context.Context, config *reflex.InboundConfig) (*Handler, error) {
 }
 
 // Network returns supported networks
-func (h *Handler) Network() []net.Network {
-	return []net.Network{net.Network_TCP}
+func (h *Handler) Network() []xnet.Network {
+	return []xnet.Network{xnet.Network_TCP}
 }
 
 // Process handles incoming connection
-func (h *Handler) Process(ctx context.Context, network net.Network, conn stat.Connection, dispatcher routing.Dispatcher) error {
+func (h *Handler) Process(ctx context.Context, network xnet.Network, conn stat.Connection, dispatcher routing.Dispatcher) error {
 	// Set handshake deadline
 	sessionPolicy := h.policyManager.ForLevel(0)
 	if err := conn.SetReadDeadline(time.Now().Add(sessionPolicy.Timeouts.Handshake)); err != nil {
@@ -139,22 +141,29 @@ func (h *Handler) Process(ctx context.Context, network net.Network, conn stat.Co
 	}
 
 	// Wrap in buffered reader for peeking
-	reader := bufio.NewReader(conn)
+	reader := bufio.NewReaderSize(conn, 4096)
 
-	// Peek first 4 bytes for magic number
-	peeked, err := reader.Peek(4)
-	if err != nil {
-		return newError("failed to peek magic").Base(err)
+	// Peek first bytes for protocol detection
+	peeked, err := reader.Peek(64)
+	if err != nil && err != io.EOF {
+		return newError("failed to peek data").Base(err)
 	}
 
-	// Check magic number
-	magic := binary.BigEndian.Uint32(peeked)
-	if magic == reflex.ReflexMagic {
-		return h.handleReflexHandshake(ctx, reader, conn, dispatcher)
-	}
+	// Detect protocol
+	protocol := h.protocolDet.DetectProtocol(peeked)
 
-	// Not Reflex protocol - fallback
-	return h.handleFallback(ctx, reader, conn)
+	switch protocol {
+	case "reflex":
+		// Check if valid handshake
+		if h.protocolDet.IsReflexHandshake(peeked) {
+			return h.handleReflexHandshake(ctx, reader, conn, dispatcher)
+		}
+		fallthrough // If invalid, treat as fallback
+
+	default:
+		// Not Reflex - fallback to HTTP server
+		return h.handleFallback(ctx, reader, conn)
+	}
 }
 
 // handleReflexHandshake processes Reflex handshake
@@ -372,8 +381,24 @@ func (h *Handler) handleFallback(ctx context.Context, reader *bufio.Reader, conn
 		return newError("fallback not configured")
 	}
 
-	// TODO: Step 4 - Implement fallback logic
-	return newError("fallback not implemented yet")
+	// Create fallback connection wrapper
+	fallbackConn := reflex.NewFallbackConn(reader, conn)
+
+	// Dial fallback server
+	target, err := net.Dial("tcp", fmt.Sprintf("127.0.0.1:%d", h.fallback.Dest))
+	if err != nil {
+		return newError("failed to dial fallback server").Base(err)
+	}
+	defer target.Close()
+
+	// Forward connection
+	if err := reflex.ForwardConnection(fallbackConn, target); err != nil {
+		if err != io.EOF {
+			return newError("fallback forwarding error").Base(err)
+		}
+	}
+
+	return nil
 }
 
 // newError creates error with context
