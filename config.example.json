@@ -1,0 +1,43 @@
+{
+  "log": {
+    "loglevel": "warning"
+  },
+  "inbounds": [
+    {
+      "tag": "inbound-reflex",
+      "port": 443,
+      "protocol": "reflex",
+      "settings": {
+        "clients": [
+          {
+            "id": "REPLACE-WITH-YOUR-UUID",
+            "policy": "http2-api"
+          }
+        ],
+        "fallback": {
+          "dest": 80
+        }
+      },
+      "sniffing": {
+        "enabled": true
+      }
+    }
+  ],
+  "outbounds": [
+    {
+      "tag": "outbound-direct",
+      "protocol": "freedom"
+    }
+  ],
+  "routing": {
+    "rules": [
+      {
+        "type": "field",
+        "inboundTag": [
+          "inbound-reflex"
+        ],
+        "outboundTag": "outbound-direct"
+      }
+    ]
+  }
+}
