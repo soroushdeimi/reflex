@@ -11,7 +11,6 @@ import (
 	"net"
 	"time"
 
-	"github.com/google/uuid"
 	"golang.org/x/crypto/curve25519"
 	"github.com/xtls/xray-core/common"
 	"github.com/xtls/xray-core/common/buf"
@@ -20,6 +19,7 @@ import (
 	"github.com/xtls/xray-core/common/session"
 	"github.com/xtls/xray-core/common/signal"
 	"github.com/xtls/xray-core/common/task"
+	"github.com/xtls/xray-core/common/uuid"
 	"github.com/xtls/xray-core/features/routing"
 	"github.com/xtls/xray-core/proxy/reflex"
 	"github.com/xtls/xray-core/transport/internet/stat"
@@ -168,11 +168,18 @@ func (h *Handler) handleReflexConnection(ctx context.Context, reader *bufio.Read
 
 // authenticateUser checks if the user ID is valid
 func (h *Handler) authenticateUser(userID [16]byte) (*protocol.MemoryUser, error) {
-	userUUID := uuid.UUID(userID)
+	userUUID, err := uuid.ParseBytes(userID[:])
+	if err != nil {
+		return nil, errors.New("invalid UUID format")
+	}
 	
 	for _, user := range h.clients {
 		account := user.Account.(*reflex.MemoryAccount)
-		if account.ID == userUUID.String() {
+		clientUUID, err := uuid.ParseString(account.ID)
+		if err != nil {
+			continue
+		}
+		if userUUID.Equals(clientUUID) {
 			return user, nil
 		}
 	}

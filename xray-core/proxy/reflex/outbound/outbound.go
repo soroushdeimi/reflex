@@ -6,7 +6,6 @@ import (
 	"io"
 	"time"
 
-	"github.com/google/uuid"
 	"golang.org/x/crypto/curve25519"
 	"github.com/xtls/xray-core/common"
 	"github.com/xtls/xray-core/common/buf"
@@ -14,6 +13,7 @@ import (
 	"github.com/xtls/xray-core/common/session"
 	"github.com/xtls/xray-core/common/signal"
 	"github.com/xtls/xray-core/common/task"
+	"github.com/xtls/xray-core/common/uuid"
 	"github.com/xtls/xray-core/core"
 	"github.com/xtls/xray-core/features/policy"
 	"github.com/xtls/xray-core/proxy/reflex"
@@ -97,10 +97,14 @@ func (h *Handler) performHandshake(conn stat.Connection) (*reflex.Session, error
 	curve25519.ScalarBaseMult(&clientPublicKey, &clientPrivateKey)
 	
 	// Parse user UUID
-	userUUID, err := uuid.Parse(h.config.Id)
+	userUUID, err := uuid.ParseString(h.config.Id)
 	if err != nil {
 		return nil, newError("invalid user ID").Base(err)
 	}
+	
+	// Convert UUID to [16]byte
+	var userID [16]byte
+	copy(userID[:], userUUID.Bytes())
 	
 	// Generate nonce
 	var nonce [16]byte
@@ -111,7 +115,7 @@ func (h *Handler) performHandshake(conn stat.Connection) (*reflex.Session, error
 	// Create client handshake
 	clientHandshake := &reflex.ClientHandshake{
 		PublicKey: clientPublicKey,
-		UserID:    userUUID,
+		UserID:    userID,
 		PolicyReq: []byte(h.config.Policy),
 		Timestamp: time.Now().Unix(),
 		Nonce:     nonce,
