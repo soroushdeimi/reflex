@@ -1,0 +1,56 @@
+{
+  "log": {
+    "loglevel": "warning"
+  },
+
+  "inbounds": [
+    {
+      "tag": "reflex-in",
+      "listen": "0.0.0.0",
+      "port": 443,
+      "protocol": "reflex",
+      "settings": {
+        "clients": [
+          {
+            "id": "11111111-1111-1111-1111-111111111111",
+            "policy": "default"
+          }
+        ],
+        "fallback": {
+          "dest": 8080,
+          "path": "/"
+        },
+        "enableTrafficMorphing": true,
+        "defaultProfile": "youtube"
+      },
+      "streamSettings": {
+        "network": "tcp"
+      }
+    }
+  ],
+
+  "outbounds": [
+    {
+      "tag": "reflex-out",
+      "protocol": "reflex",
+      "settings": {
+        "address": "127.0.0.1",
+        "port": 443,
+        "id": "11111111-1111-1111-1111-111111111111"
+      },
+      "streamSettings": {
+        "network": "tcp"
+      }
+    }
+  ],
+
+  "routing": {
+    "rules": [
+      {
+        "type": "field",
+        "inboundTag": ["reflex-in"],
+        "outboundTag": "reflex-out"
+      }
+    ]
+  }
+}
