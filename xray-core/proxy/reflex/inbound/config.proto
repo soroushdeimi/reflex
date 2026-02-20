@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package xray.proxy.reflex.inbound;
+option go_package = "github.com/xtls/xray-core/proxy/reflex/inbound";
+
+import "common/protocol/user.proto";
+
+// Fallback configuration for handling non-Reflex connections
+message Fallback {
+  // Destination address:port (e.g., "127.0.0.1:8080")
+  string dest = 1;
+  // ALPN protocol (optional, for TLS fallback)
+  string alpn = 2;
+}
+
+// Config is the configuration for Reflex inbound
+message Config {
+  // List of client users
+  repeated xray.common.protocol.User clients = 1;
+  // Fallback configuration
+  Fallback fallback = 2;
+}
