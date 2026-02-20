@@ -70,8 +70,13 @@ if command -v golangci-lint >/dev/null 2>&1; then
     FAIL=1
   fi
 else
-  echo "⚠ SKIP: golangci-lint not installed"
-  echo "  Install: go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest"
+  echo "Running go vet (install golangci-lint for stricter checks)..."
+  if go vet ./proxy/reflex/... ./tests/... 2>&1; then
+    echo "✓ Lint check passed (go vet)"
+  else
+    echo "⚠ Lint issues found (see above)"
+    FAIL=1
+  fi
 fi
 echo ""
 
@@ -114,7 +119,7 @@ echo ""
 echo "Summary:"
 echo "  • Tests: passing"
 echo "  • Coverage: ${COVER_PCT}%"
-echo "  • Lint: $(command -v golangci-lint >/dev/null 2>&1 && echo 'checked' || echo 'skipped')"
+echo "  • Lint: $(command -v golangci-lint >/dev/null 2>&1 && echo 'checked (golangci-lint)' || echo 'checked (go vet)')"
 echo "  • Race detector: passing"
 echo "  • Build: successful"
 echo ""
