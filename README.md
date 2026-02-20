@@ -23,6 +23,20 @@
 5. [تست کنید](docs/testing.md) که همه چیز درست کار می‌کنه
 6. [تحویل بدید](docs/submission.md) - یک برنچ بسازید و PR بزنید
 
+## مستندات پیاده‌سازی
+
+پروژه ما شامل مستندات کامل برای build، test و deployment هست:
+
+- **[BUILD.md](BUILD.md)**: راهنمای کامل build و deployment
+- **[TESTING.md](TESTING.md)**: راهنمای تست و debugging
+- **[IMPLEMENTATION.md](IMPLEMENTATION.md)**: توضیحات معماری و implementation
+- **[SUBMISSION.md](SUBMISSION.md)**: خلاصه پیاده‌سازی و تحویل پروژه
+
+## فایل‌های پیکربندی
+
+- **[config.server.json](config.server.json)**: مثال پیکربندی سرور
+- **[config.client.json](config.client.json)**: مثال پیکربندی کلاینت
+
 ## نمره‌دهی (120 نمره)
 
 ### پیاده‌سازی (80 نمره)
