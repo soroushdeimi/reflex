@@ -5,6 +5,8 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"encoding/binary"
+	"errors"
+	"fmt"
 	"io"
 	"time"
 
@@ -151,13 +153,8 @@ func (h *Handler) clientHandshake(conn net.Conn) ([]byte, error) {
 		return nil, err
 	}
 
-	// ۱. ارسال مجیک و تمام دیتای هندشیک در یک مرحله
-	fullPayload := make([]byte, 4+64) // 4 (Magic) + 64 (Handshake)
-
-	// Magic
+	fullPayload := make([]byte, 4+64)
 	binary.BigEndian.PutUint32(fullPayload[:4], reflex.ReflexMagic)
-
-	// Handshake Data (32 + 16 + 8 + 8)
 	copy(fullPayload[4:36], pubKey[:])
 	uid := [16]byte(parsedUUID)
 	copy(fullPayload[36:52], uid[:])
@@ -166,12 +163,10 @@ func (h *Handler) clientHandshake(conn net.Conn) ([]byte, error) {
 		return nil, err
 	}
 
-	// نوشتن کل بسته به صورت یک‌جا
 	if _, err := conn.Write(fullPayload); err != nil {
 		return nil, err
 	}
 
-	// ۲. دریافت پاسخ سرور (۳۲ بایت کلید عمومی)
 	respPubKey := make([]byte, 32)
 	if _, err := io.ReadFull(conn, respPubKey); err != nil {
 		return nil, err
@@ -180,11 +175,39 @@ func (h *Handler) clientHandshake(conn net.Conn) ([]byte, error) {
 	var sPubKey [32]byte
 	copy(sPubKey[:], respPubKey)
 
-	// ۳. استخراج کلید
 	shared := reflex.DeriveSharedKey(privKey, sPubKey)
-	// استفاده از نانس ارسالی در سالت (بایت ۶۰ تا ۶۸)
 	salt := append(fullPayload[60:68], uid[:]...)
-	return reflex.DeriveSessionKey(shared, salt)
+	sessionKey, err := reflex.DeriveSessionKey(shared, salt)
+	if err != nil {
+		return nil, err
+	}
+
+	policyLenBuf := make([]byte, 2)
+	if _, err := io.ReadFull(conn, policyLenBuf); err != nil {
+		return nil, fmt.Errorf("failed to read policy length: %w", err)
+	}
+	policyLen := binary.BigEndian.Uint16(policyLenBuf)
+
+	encryptedPolicy := make([]byte, policyLen)
+	if _, err := io.ReadFull(conn, encryptedPolicy); err != nil {
+		return nil, fmt.Errorf("failed to read encrypted policy: %w", err)
+	}
+
+	policyAead, err := reflex.NewCipher(sessionKey)
+	if err != nil {
+		return nil, err
+	}
+
+	nonce := make([]byte, policyAead.NonceSize())
+
+	decryptedPolicy, err := policyAead.Open(nil, nonce, encryptedPolicy, nil)
+	if err != nil {
+		return nil, errors.New("failed to decrypt policy grant")
+	}
+
+	fmt.Printf("Policy Grant received: %d bytes\n", len(decryptedPolicy))
+
+	return sessionKey, nil
 }
 
 func New(ctx context.Context, config *reflex.OutboundConfig) (proxy.Outbound, error) {
