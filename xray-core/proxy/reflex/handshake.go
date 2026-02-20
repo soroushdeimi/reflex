@@ -1,6 +1,7 @@
 package reflex
 
 import (
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/binary"
 	"io"
@@ -45,13 +46,12 @@ func DeriveSessionKey(sharedKey [32]byte, salt []byte) []byte {
 func GenerateKeyPair() (*[32]byte, *[32]byte, error) {
 	var privateKey, publicKey [32]byte
 	
-	// Generate random private key
-	if _, err := io.ReadFull(io.Reader(nil), privateKey[:]); err != nil {
-		// Use crypto/rand instead
+	// Generate random private key using crypto/rand
+	if _, err := io.ReadFull(rand.Reader, privateKey[:]); err != nil {
 		return nil, nil, err
 	}
 	
-	// Derive public key
+	// Derive public key using X25519
 	curve25519.ScalarBaseMult(&publicKey, &privateKey)
 	
 	return &privateKey, &publicKey, nil

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"golang.org/x/crypto/curve25519"
 	"github.com/xtls/xray-core/common"
 	"github.com/xtls/xray-core/common/buf"
 	"github.com/xtls/xray-core/common/net"
@@ -93,9 +94,8 @@ func (h *Handler) performHandshake(conn stat.Connection) (*reflex.Session, error
 		return nil, newError("failed to generate client key").Base(err)
 	}
 	
-	// For simplicity, copy private key as public key (placeholder)
-	// In production, use proper curve25519 scalar base multiplication
-	copy(clientPublicKey[:], clientPrivateKey[:])
+	// Compute client public key using X25519
+	curve25519.ScalarBaseMult(&clientPublicKey, &clientPrivateKey)
 	
 	// Parse user UUID
 	userUUID, err := uuid.Parse(h.config.Id)

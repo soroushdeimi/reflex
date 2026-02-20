@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"golang.org/x/crypto/curve25519"
 	"github.com/xtls/xray-core/common"
 	"github.com/xtls/xray-core/common/buf"
 	xnet "github.com/xtls/xray-core/common/net"
@@ -126,10 +127,8 @@ func (h *Handler) handleReflexConnection(ctx context.Context, reader *bufio.Read
 		return newError("failed to generate server key").Base(err)
 	}
 	
-	// Compute server public key (X25519)
-	// For simplicity, we'll use the same approach as in handshake.go
-	// In production, use proper curve25519 scalar base multiplication
-	copy(serverPublicKey[:], serverPrivateKey[:]) // Placeholder - should use curve25519
+	// Compute server public key using X25519
+	curve25519.ScalarBaseMult(&serverPublicKey, &serverPrivateKey)
 	
 	// Derive shared key
 	sharedKey := reflex.DeriveSharedKey(&serverPrivateKey, &clientHandshake.PublicKey)
