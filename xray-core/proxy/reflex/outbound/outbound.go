@@ -24,7 +24,6 @@ import (
 
 // Handler is the outbound handler for Reflex protocol
 type Handler struct {
-	serverPicker  protocol.ServerPicker
 	policyManager policy.Manager
 	config        *reflex.OutboundConfig
 	profile       *reflex.TrafficProfile
