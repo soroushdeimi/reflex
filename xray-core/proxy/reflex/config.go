@@ -1,33 +1,31 @@
-// Package reflex provides the Reflex proxy protocol for Xray-Core.
-// Config types match the step1 spec (config.proto). Students may replace
-// with protobuf-generated types.
 package reflex
 
-// User represents a client (step1 spec).
-type User struct {
-	Id     string // UUID
-	Policy string
+import (
+	"google.golang.org/protobuf/proto"
+
+	"github.com/xtls/xray-core/common/protocol"
+)
+
+// MemoryAccount is an in-memory representation of a Reflex account.
+type MemoryAccount struct {
+	ID string
 }
 
-// Account for protocol.Account (step1).
-type Account struct {
-	Id string
+func (a *Account) AsAccount() (protocol.Account, error) {
+	return &MemoryAccount{
+		ID: a.GetId(),
+	}, nil
 }
 
-// Fallback config (step1).
-type Fallback struct {
-	Dest uint32
+func (a *MemoryAccount) Equals(another protocol.Account) bool {
+	if account, ok := another.(*MemoryAccount); ok {
+		return a.ID == account.ID
+	}
+	return false
 }
 
-// InboundConfig is the inbound config (step1).
-type InboundConfig struct {
-	Clients  []*User
-	Fallback *Fallback
-}
-
-// OutboundConfig (step1).
-type OutboundConfig struct {
-	Address string
-	Port    uint32
-	Id      string
+func (a *MemoryAccount) ToProto() proto.Message {
+	return &Account{
+		Id: a.ID,
+	}
 }

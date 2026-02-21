@@ -1,0 +1,32 @@
+{
+  "log": {
+    "loglevel": "debug"
+  },
+  "inbounds": [
+    {
+      "port": 1080,
+      "protocol": "socks",
+      "settings": {
+        "udp": false
+      },
+      "tag": "socks-in"
+    }
+  ],
+  "outbounds": [
+    {
+      "protocol": "reflex",
+      "settings": {
+        "address": "127.0.0.1",
+        "port": 10443,
+        "id": "b831381d-6324-4d53-ad4f-8cda48b30811",
+        "policy": "youtube",
+        "ech": {
+          "enabled": true,
+          "serverName": "reflex-test",
+          "insecure": true
+        }
+      },
+      "tag": "reflex-out"
+    }
+  ]
+}
