@@ -15,6 +15,7 @@ import (
 	"github.com/xtls/xray-core/common"
 	"github.com/xtls/xray-core/common/net"
 	"github.com/xtls/xray-core/common/protocol"
+
 	"github.com/xtls/xray-core/features/routing"
 	"github.com/xtls/xray-core/proxy"
 	"github.com/xtls/xray-core/proxy/reflex"
@@ -289,4 +290,5 @@ func New(ctx context.Context, config *reflex.InboundConfig) (proxy.Inbound, erro
 	}
 
 	return handler, nil
+
 }
