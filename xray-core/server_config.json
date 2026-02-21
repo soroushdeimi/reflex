@@ -1,0 +1,28 @@
+{
+  "log": {
+    "loglevel": "debug"
+  },
+  "inbounds": [
+    {
+      "port": 8081,
+      "protocol": "reflex",
+      "settings": {
+        "morphing_enabled": true,
+        "clients": [
+          {
+            "id": "b831381d-6324-4d53-ad4f-8cda48b30811"
+          }
+        ]
+      },
+      "streamSettings": {
+        "network": "tcp"
+      }
+    }
+  ],
+  "outbounds": [
+    {
+      "protocol": "freedom",
+      "tag": "direct"
+    }
+  ]
+}

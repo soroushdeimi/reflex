@@ -1,0 +1,19 @@
+{
+  "log": { "loglevel": "warning" },
+  "inbounds": [{
+    "tag": "reflex-in",
+    "listen": "127.0.0.1",
+    "port": 8443,
+    "protocol": "reflex",
+    "settings": {
+      "clients": [
+        { "id": "a1b2c3d4-e5f6-4789-a012-3456789abcde", "policy": "http2-api" }
+      ],
+      "fallback": { "dest": 8080 }
+    }
+  }],
+  "outbounds": [{
+    "tag": "direct",
+    "protocol": "freedom"
+  }]
+}

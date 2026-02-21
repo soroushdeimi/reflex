@@ -1,0 +1,35 @@
+{
+  "log": { "loglevel": "warning" },
+  "inbounds": [{
+    "tag": "socks-in",
+    "listen": "127.0.0.1",
+    "port": 1080,
+    "protocol": "socks",
+    "settings": { "udp": true }
+  }, {
+    "tag": "http-in",
+    "listen": "127.0.0.1",
+    "port": 8081,
+    "protocol": "http"
+  }],
+  "outbounds": [{
+    "tag": "reflex-out",
+    "protocol": "reflex",
+    "settings": {
+      "address": "127.0.0.1",
+      "port": 8443,
+      "id": "a1b2c3d4-e5f6-4789-a012-3456789abcde"
+    }
+  }, {
+    "tag": "direct",
+    "protocol": "freedom"
+  }],
+  "routing": {
+    "domainStrategy": "AsIs",
+    "rules": [{
+      "type": "field",
+      "outboundTag": "reflex-out",
+      "network": "tcp,udp"
+    }]
+  }
+}
