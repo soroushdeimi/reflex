@@ -3,6 +3,7 @@ package inbound
 import (
 	"bufio"
 	"context"
+	"crypto/cipher"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/xtls/xray-core/common"
+	"github.com/xtls/xray-core/common/buf"
 	"github.com/xtls/xray-core/common/net"
 	"github.com/xtls/xray-core/common/protocol"
 	"github.com/xtls/xray-core/features/routing"
@@ -185,8 +187,120 @@ func (h *Handler) encryptPolicyGrant(data []byte, key []byte) ([]byte, error) {
 	return aead.Seal(nil, nonce, data, nil), nil
 }
 
-func (h *Handler) handleSession(ctx context.Context, reader *bufio.Reader, conn stat.Connection, dispatcher routing.Dispatcher, key []byte, user any) error {
-	return nil
+func (h *Handler) handleSession(ctx context.Context, reader *bufio.Reader, conn stat.Connection, dispatcher routing.Dispatcher, key []byte, user *protocol.MemoryUser) error {
+	// ۱. ساخت Cipher
+	aead, err := reflex.NewCipher(key)
+	if err != nil {
+		return err
+	}
+
+	nonce := make([]byte, aead.NonceSize()) // نانس شروع (۰)
+
+	// ۲. دریافت و رمزگشایی آدرس مقصد
+	header := make([]byte, 2)
+	if _, err := io.ReadFull(reader, header); err != nil {
+		return err
+	}
+	addrLen := binary.BigEndian.Uint16(header)
+
+	encryptedAddr := make([]byte, addrLen)
+	if _, err := io.ReadFull(reader, encryptedAddr); err != nil {
+		return err
+	}
+
+	decryptedAddr, err := aead.Open(nil, nonce, encryptedAddr, nil)
+	if err != nil {
+		return errors.New("failed to decrypt target address. key mismatch or corruption")
+	}
+
+	// ۳. پارس کردن آدرس و اتصال به مقصد واقعی
+	target, err := net.ParseDestination(string(decryptedAddr))
+	if err != nil {
+		return fmt.Errorf("invalid target address received: %w", err)
+	}
+	fmt.Printf("DEBUG (Server): Forwarding traffic to: %s\n", target.String())
+
+	// ۴. آماده‌سازی برای تبادل دیتا (افزایش نانس به ۱)
+	h.increment(nonce)
+
+	sessionCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	link, err := dispatcher.Dispatch(sessionCtx, target)
+	if err != nil {
+		return err
+	}
+
+	// کپی نانس برای گوروتین‌ها
+	serverOutNonce := make([]byte, len(nonce))
+	copy(serverOutNonce, nonce)
+	serverInNonce := make([]byte, len(nonce))
+	copy(serverInNonce, nonce)
+
+	errs := make(chan error, 2)
+
+	// ۵. شروع مسیرهای تبادل دیتا
+	go func() {
+		errs <- h.readDecrypt(reader, link.Writer, aead, serverInNonce)
+	}()
+
+	go func() {
+		errs <- h.encryptWrite(link.Reader, conn, aead, serverOutNonce)
+	}()
+
+	return <-errs
+}
+
+// این دو تابع دقیقاً مشابه کدهای تو هستند، با کمی تغییر برای Inbound
+func (h *Handler) encryptWrite(reader buf.Reader, writer io.Writer, aead cipher.AEAD, nonce []byte) error {
+	nonce := make([]byte, aead.NonceSize())
+	for {
+		multiBuffer, err := reader.ReadMultiBuffer()
+		if err != nil {
+			return err
+		}
+		for _, buffer := range multiBuffer {
+			encrypted := aead.Seal(nil, nonce, buffer.Bytes(), nil)
+			header := make([]byte, 2)
+			binary.BigEndian.PutUint16(header, uint16(len(encrypted)))
+			writer.Write(header)
+			writer.Write(encrypted)
+			h.increment(nonce)
+			buffer.Release()
+		}
+	}
+}
+
+func (h *Handler) readDecrypt(reader io.Reader, writer buf.Writer, aead cipher.AEAD, nonce []byte) error {
+	nonce := make([]byte, aead.NonceSize())
+	header := make([]byte, 2)
+	for {
+		if _, err := io.ReadFull(reader, header); err != nil {
+			return err
+		}
+		length := binary.BigEndian.Uint16(header)
+		payload := make([]byte, length)
+		if _, err := io.ReadFull(reader, payload); err != nil {
+			return err
+		}
+		decrypted, err := aead.Open(nil, nonce, payload, nil)
+		if err != nil {
+			return err
+		}
+		b := buf.New()
+		b.Write(decrypted)
+		writer.WriteMultiBuffer(buf.MultiBuffer{b})
+		h.increment(nonce)
+	}
+}
+
+func (h *Handler) increment(b []byte) {
+	for i := range b {
+		b[i]++
+		if b[i] != 0 {
+			return
+		}
+	}
 }
 
 func (h *Handler) handleFallback(ctx context.Context, reader *bufio.Reader, conn stat.Connection) error {

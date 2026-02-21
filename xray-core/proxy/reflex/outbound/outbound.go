@@ -14,6 +14,7 @@ import (
 	"github.com/xtls/xray-core/common/buf"
 	"github.com/xtls/xray-core/common/net"
 	"github.com/xtls/xray-core/common/uuid"
+	"github.com/xtls/xray-core/proxy"
 	"github.com/xtls/xray-core/proxy/reflex"
 	"github.com/xtls/xray-core/transport"
 	"github.com/xtls/xray-core/transport/internet"
@@ -26,39 +27,71 @@ type Handler struct {
 }
 
 func (h *Handler) Process(ctx context.Context, link *transport.Link, dialer internet.Dialer) error {
+	// ۱. اتصال به سرور محمد
 	destination := net.TCPDestination(net.ParseAddress(h.serverAddress), h.serverPort)
-
 	conn, err := dialer.Dial(ctx, destination)
 	if err != nil {
 		return fmt.Errorf("failed to dial reflex server %s:%d: %w", h.serverAddress, h.serverPort, err)
 	}
 	defer conn.Close()
 
+	// ۲. انجام هندشیک و دریافت Session Key
 	sessionKey, err := h.clientHandshake(conn)
 	if err != nil {
 		return fmt.Errorf("reflex handshake failed: %w", err)
 	}
 
+	// ۳. ساخت Cipher
 	aead, err := reflex.NewCipher(sessionKey)
 	if err != nil {
 		return fmt.Errorf("failed to create cipher: %w", err)
 	}
 
+	// ۴. ارسال آدرس مقصد (Target Address) به سرور
+	// استخراج مقصد از درخواست (مثلاً www.google.com:80)
+	target, ok := proxy.TargetFromContext(ctx)
+	if !ok {
+		return errors.New("failed to get target destination from context")
+	}
+
+	// رمزنگاری آدرس مقصد با نانس صفر
+	targetAddrRaw := target.String()
+	nonce := make([]byte, aead.NonceSize()) // نانس شروع (۰)
+
+	encryptedAddr := aead.Seal(nil, nonce, []byte(targetAddrRaw), nil)
+
+	// ارسال فریم آدرس: [2B Length][Encrypted Address]
+	addrHeader := make([]byte, 2)
+	binary.BigEndian.PutUint16(addrHeader, uint16(len(encryptedAddr)))
+	if _, err := conn.Write(addrHeader); err != nil {
+		return err
+	}
+	if _, err := conn.Write(encryptedAddr); err != nil {
+		return err
+	}
+
+	// ۵. افزایش نانس (حالا نانس ۱ است) برای شروع تبادل دیتای اصلی
+	h.increment(nonce)
+
+	// ۶. مدیریت مسیرهای آپلود و دانلود
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-
 	errs := make(chan error, 2)
 
+	// کپی نانس برای استفاده در گوروتین‌ها (برای جلوگیری از Race Condition)
+	outNonce := make([]byte, len(nonce))
+	copy(outNonce, nonce)
+	inNonce := make([]byte, len(nonce))
+	copy(inNonce, nonce)
+
 	go func() {
-		errs <- h.encryptWrite(link.Reader, conn, aead)
+		errs <- h.encryptWrite(link.Reader, conn, aead, outNonce)
 	}()
 
-	// ۷. مسیر دانلود
 	go func() {
-		errs <- h.readDecrypt(conn, link.Writer, aead)
+		errs <- h.readDecrypt(conn, link.Writer, aead, inNonce)
 	}()
 
-	// ۸. انتظار برای پایان
 	select {
 	case err := <-errs:
 		if err != nil && err != io.EOF {
@@ -71,7 +104,7 @@ func (h *Handler) Process(ctx context.Context, link *transport.Link, dialer inte
 	return nil
 }
 
-func (h *Handler) encryptWrite(reader buf.Reader, writer io.Writer, aead cipher.AEAD) error {
+func (h *Handler) encryptWrite(reader buf.Reader, writer io.Writer, aead cipher.AEAD, nonce []byte) error {
 	nonce := make([]byte, aead.NonceSize())
 	for {
 		b, err := reader.ReadMultiBuffer()
@@ -103,7 +136,7 @@ func (h *Handler) encryptWrite(reader buf.Reader, writer io.Writer, aead cipher.
 	}
 }
 
-func (h *Handler) readDecrypt(reader io.Reader, writer buf.Writer, aead cipher.AEAD) error {
+func (h *Handler) readDecrypt(reader io.Reader, writer buf.Writer, aead cipher.AEAD, nonce []byte) error {
 	nonce := make([]byte, aead.NonceSize())
 	header := make([]byte, 2)
 
@@ -256,4 +289,13 @@ func init() {
 			return New(ctx, config.(*reflex.OutboundConfig))
 		},
 	))
+}
+
+func (h *Handler) increment(b []byte) {
+	for i := range b {
+		b[i]++
+		if b[i] != 0 {
+			return
+		}
+	}
 }
