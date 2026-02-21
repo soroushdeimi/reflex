@@ -3,25 +3,32 @@ package inbound
 import (
 	"bufio"
 	"context"
+	"encoding/binary"
 	"errors"
+	"fmt"
+	"io"
+	stdnet "net"
 
 	"github.com/xtls/xray-core/common"
-	"github.com/xtls/xray-core/common/buf"
 	xnet "github.com/xtls/xray-core/common/net"
 	"github.com/xtls/xray-core/common/protocol"
 	"github.com/xtls/xray-core/features/routing"
 	"github.com/xtls/xray-core/proxy"
 	"github.com/xtls/xray-core/proxy/reflex"
-	reflexcrypto "github.com/xtls/xray-core/proxy/reflex/crypto"
-	reflexproto "github.com/xtls/xray-core/proxy/reflex/protocol"
-	"github.com/xtls/xray-core/proxy/reflex/session"
+	"github.com/xtls/xray-core/proxy/reflex/crypto"
 	"github.com/xtls/xray-core/transport/internet/stat"
 	"google.golang.org/protobuf/proto"
 )
 
+const ReflexMinPeekSize = 64
+
 type Handler struct {
 	clients  []*protocol.MemoryUser
 	fallback *FallbackConfig
+}
+
+type FallbackConfig struct {
+	Dest uint32
 }
 
 type MemoryAccount struct {
@@ -37,11 +44,9 @@ func (a *MemoryAccount) Equals(account protocol.Account) bool {
 }
 
 func (a *MemoryAccount) ToProto() proto.Message {
-	return &reflex.Account{Id: a.Id}
-}
-
-type FallbackConfig struct {
-	Dest uint32
+	return &reflex.Account{
+		Id: a.Id,
+	}
 }
 
 func (h *Handler) Network() []xnet.Network {
@@ -57,95 +62,85 @@ func (h *Handler) Process(
 
 	reader := bufio.NewReader(conn)
 
-	sess, user, err := reflexcrypto.ServerHandshake(reader, conn, h.clients)
-	if err != nil {
-		if h.fallback != nil {
-			return h.handleFallback(ctx, conn)
-		}
+	peeked, err := reader.Peek(ReflexMinPeekSize)
+	if err != nil && err != io.EOF {
 		return err
 	}
 
-	return h.handleSession(ctx, reader, conn, dispatcher, sess, user)
-}
-
-func (h *Handler) handleSession(
-	ctx context.Context,
-	reader *bufio.Reader,
-	conn stat.Connection,
-	dispatcher routing.Dispatcher,
-	sess *session.Session,
-	user *protocol.MemoryUser,
-) error {
-
-	// First frame must contain destination
-	frame, err := sess.ReadFrame(reader)
-	if err != nil {
-		return err
-	}
-
-	if frame.Type != reflexproto.FrameTypeData {
-		return errors.New("first frame must be DATA")
-	}
-
-	dest, payload, err := reflexproto.ParseDestination(frame.Payload)
-	if err != nil {
-		return err
-	}
-
-	link, err := dispatcher.Dispatch(ctx, dest)
-	if err != nil {
-		return err
-	}
-
-	// Send initial payload upstream
-	if len(payload) > 0 {
-		buffer := buf.FromBytes(payload)
-		if err := link.Writer.WriteMultiBuffer(buf.MultiBuffer{buffer}); err != nil {
-			return err
-		}
-	}
-
-	// Upstream → Client
-	go func() {
-		for {
-			mb, err := link.Reader.ReadMultiBuffer()
-			if err != nil {
-				return
-			}
-			for _, b := range mb {
-				sess.WriteFrame(conn, reflexproto.FrameTypeData, b.Bytes())
-				b.Release()
-			}
-		}
-	}()
-
-	// Client → Upstream
-	for {
-		frame, err := sess.ReadFrame(reader)
+	if h.isReflexHandshake(peeked) {
+		session, user, err := crypto.ServerHandshake(reader, conn, h.clients)
 		if err != nil {
-			return err
+			return h.handleFallback(ctx, reader, conn)
 		}
 
-		switch frame.Type {
+		// بعداً Step 3 full tunnel اینجا اجرا میشه
+		_ = session
+		_ = user
 
-		case reflexproto.FrameTypeData:
-			buffer := buf.FromBytes(frame.Payload)
-			if err := link.Writer.WriteMultiBuffer(buf.MultiBuffer{buffer}); err != nil {
-				return err
-			}
-
-		case reflexproto.FrameTypeClose:
-			return nil
-
-		default:
-			continue
-		}
+		return nil
 	}
+
+	return h.handleFallback(ctx, reader, conn)
 }
 
-func (h *Handler) handleFallback(ctx context.Context, conn stat.Connection) error {
-	conn.Close()
+func (h *Handler) isReflexHandshake(data []byte) bool {
+	if h.isReflexMagic(data) {
+		return true
+	}
+	if h.isHTTPPostLike(data) {
+		return true
+	}
+	return false
+}
+
+func (h *Handler) isReflexMagic(data []byte) bool {
+	if len(data) < 4 {
+		return false
+	}
+	magic := binary.BigEndian.Uint32(data[:4])
+	return magic == crypto.ReflexMagic
+}
+
+func (h *Handler) isHTTPPostLike(data []byte) bool {
+	if len(data) < 4 {
+		return false
+	}
+	return string(data[:4]) == "POST"
+}
+
+func (h *Handler) handleFallback(ctx context.Context, reader *bufio.Reader, conn stat.Connection) error {
+	if h.fallback == nil {
+		return errors.New("no fallback configured")
+	}
+
+	target, err := stdnet.Dial("tcp", fmt.Sprintf("127.0.0.1:%d", h.fallback.Dest))
+	if err != nil {
+		return err
+	}
+	defer target.Close()
+
+	wrapped := &preloadedConn{
+		Reader:     reader,
+		Connection: conn,
+	}
+
+	go io.Copy(target, wrapped)
+	io.Copy(wrapped, target)
+
 	return nil
+}
+
+type preloadedConn struct {
+	*bufio.Reader
+	stat.Connection
+}
+
+func (p *preloadedConn) Read(b []byte) (int, error) {
+	return p.Reader.Read(b)
+}
+
+func (p *preloadedConn) Write(b []byte) (int, error) {
+	return p.Connection.Write(b)
 }
 
 func init() {

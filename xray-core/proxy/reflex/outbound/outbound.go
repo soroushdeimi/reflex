@@ -12,15 +12,18 @@ import (
 )
 
 func init() {
-	common.Must(common.RegisterConfig((*reflex.OutboundConfig)(nil), func(ctx context.Context, config interface{}) (interface{}, error) {
-		return New(ctx, config.(*reflex.OutboundConfig))
-	}))
+	common.Must(common.RegisterConfig(
+		(*reflex.OutboundConfig)(nil),
+		func(ctx context.Context, config interface{}) (interface{}, error) {
+			return New(ctx, config.(*reflex.OutboundConfig))
+		},
+	))
 }
 
-// Handler is the Reflex outbound handler (stub).
+// Handler is the Reflex outbound handler (currently a stub).
 type Handler struct{}
 
-// Process implements proxy.Outbound.Process(). Stub: returns nil.
+// Process implements proxy.Outbound.
 func (h *Handler) Process(ctx context.Context, link *transport.Link, d internet.Dialer) error {
 	_ = ctx
 	_ = link
@@ -29,7 +32,7 @@ func (h *Handler) Process(ctx context.Context, link *transport.Link, d internet.
 }
 
 // New creates a new Reflex outbound handler.
-func New(ctx context.Context, config *reflex.OutboundConfig) (proxy.OutboundHandler, error) {
+func New(ctx context.Context, config *reflex.OutboundConfig) (proxy.Outbound, error) {
 	_ = ctx
 	_ = config
 	return &Handler{}, nil

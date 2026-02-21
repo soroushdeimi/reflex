@@ -1,56 +1,53 @@
-# پروژه Reflex -
+# Reflex Protocol Implementation
 
-## چیه این پروژه؟
+## Team Members
+- Barbod Zohourfazeli – 402111464  
+- MohammadParsa Sadeghi – 401109947 
 
-پروژه Reflex یک پروتکل پراکسی جدید برای Xray-Core هست که سعی می‌کنه مشکلات پروتکل‌های قبلی مثل VMess و VLESS رو حل کنه. هدف اصلی اینه که ترافیک پراکسی رو غیرقابل تشخیص کنیم - یعنی سانسورچی نتونه بفهمه که این ترافیک پراکسی هست.
+## Project Overview
 
-## چیکار باید بکنید؟
+This project implements the Reflex protocol on top of Xray-Core as part of the course assignment.
 
-شما باید پروتکل Reflex رو در Xray-Core پیاده‌سازی کنید. این کار در چند مرحله انجام می‌شه:
+The implementation follows all required steps:
 
-1. **مرحله 1**: ساختار اولیه پروتکل (پکیج، config، handler اولیه)
-2. **مرحله 2**: پیاده‌سازی handshake و احراز هویت
-3. **مرحله 3**: رمزنگاری و پردازش بسته‌ها
-4. **مرحله 4**: fallback به وب‌سرور (مثل Trojan)
-5. **مرحله 5**: قابلیت‌های پیشرفته (Traffic Morphing و ...)
+- Step 1: Basic protocol structure
+- Step 2: Secure handshake using X25519 key exchange
+- Step 3: Frame encryption using ChaCha20-Poly1305 (AEAD)
+- Step 4: Protocol detection and fallback using bufio.Peek
+- Step 5: Basic traffic morphing (packet size & timing distribution)
 
-## چطوری شروع کنید؟
+## Implemented Features
 
-1. اول [راه‌اندازی محیط](docs/setup.md) رو بخونید و Go و Git رو نصب کنید
-2. ریپو Reflex رو کلون کنید (که شامل Xray-Core هست) و بیلد اولیه رو تست کنید
-3. [پروتکل Reflex](docs/protocol.md) رو بخونید تا بفهمید چطوری کار می‌کنه
-4. مرحله به مرحله پیش برید: [Step 1](docs/step1-basic.md) → [Step 2](docs/step2-handshake.md) → [Step 3](docs/step3-encryption.md) → [Step 4](docs/step4-fallback.md) → [Step 5](docs/step5-advanced.md)
-5. [تست کنید](docs/testing.md) که همه چیز درست کار می‌کنه
-6. [تحویل بدید](docs/submission.md) - یک برنچ بسازید و PR بزنید
+### Handshake
+- Ephemeral X25519 key exchange
+- Session key derivation using HKDF-SHA256
+- UUID-based authentication
+- Timestamp validation
+- Replay protection using nonce tracking
 
-## نمره‌دهی (120 نمره)
+### Encryption
+- Frame structure:
+  - 2 bytes length
+  - 1 byte type
+  - Encrypted payload
+- AEAD encryption (ChaCha20-Poly1305)
+- Independent read/write nonces
+- Replay protection at session level
 
-### پیاده‌سازی (80 نمره)
-- **Step 1 - Basic Structure**: 10 نمره
-- **Step 2 - Handshake**: 15 نمره
-- **Step 3 - Encryption**: 15 نمره
-- **Step 4 - Fallback**: 15 نمره
-- **Step 5 - Advanced**: 20 نمره (15 نمره اجباری + 5 نمره امتیازی)
+### Fallback
+- Protocol detection using `bufio.Peek`
+- Magic-based and HTTP-like detection
+- Fallback forwarding to a local web server
+- Single-port multiplexing support
 
-### تست‌ها (20 نمره)
-- تست‌های واحد: 10 نمره
-- تست‌های یکپارچگی: 10 نمره
+### Traffic Morphing (Basic)
+- FrameTypePadding support
+- FrameTypeTiming support
+- Packet size randomization
+- Basic delay distribution
 
-### کد و مستندات (20 نمره)
-- کیفیت کد و خوانایی: 10 نمره
-- مستندات و کامنت‌ها: 10 نمره
+## How to Build
 
-جزئیات بیشتر در [فایل تحویل](docs/submission.md) هست.
-
-## منابع
-
-- [Xray-Core Repository](https://github.com/XTLS/Xray-core)
-- [Go Documentation](https://go.dev/doc/)
-- [Protocol Specification](docs/protocol.md)
-
-## سوال دارید؟
-
----
-
-**موفق باشید!** 
-
+```bash
+cd xray-core
+go build -o xray ./main

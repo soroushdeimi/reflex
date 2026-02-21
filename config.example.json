@@ -1,0 +1,24 @@
+{
+    "inbounds": [
+      {
+        "port": 443,
+        "protocol": "reflex",
+        "settings": {
+          "clients": [
+            {
+              "id": "123e4567-e89b-12d3-a456-426614174000",
+              "policy": "mimic-http2-api"
+            }
+          ],
+          "fallback": {
+            "dest": 80
+          }
+        }
+      }
+    ],
+    "outbounds": [
+      {
+        "protocol": "freedom"
+      }
+    ]
+  }

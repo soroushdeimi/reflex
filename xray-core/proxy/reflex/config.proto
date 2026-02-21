@@ -1,28 +1,44 @@
 syntax = "proto3";
 
-package reflex.proxy;
+package reflex;
+
 option go_package = "github.com/xtls/xray-core/proxy/reflex";
 
+// =====================
+// User definition
+// =====================
 message User {
-  string id = 1;  // UUID کاربر
-  string policy = 2;  // سیاست ترافیک (مثلاً "mimic-http2-api")
+  string id = 1;       // UUID
+  string policy = 2;   // optional traffic profile name
 }
 
+// =====================
+// Account (used internally)
+// =====================
 message Account {
-  string id = 1;  // UUID کاربر
+  string id = 1;
 }
 
+// =====================
+// Inbound configuration
+// =====================
 message InboundConfig {
   repeated User clients = 1;
   Fallback fallback = 2;
 }
 
+// =====================
+// Fallback config
+// =====================
 message Fallback {
-  uint32 dest = 1;  // پورت مقصد fallback (مثلاً 80)
+  uint32 dest = 1;   // fallback port
 }
 
+// =====================
+// Outbound configuration
+// =====================
 message OutboundConfig {
   string address = 1;
   uint32 port = 2;
-  string id = 3;  // UUID کلاینت
+  string id = 3;     // UUID
 }

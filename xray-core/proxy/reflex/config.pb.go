@@ -21,10 +21,13 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// =====================
+// User definition
+// =====================
 type User struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`         // UUID کاربر
-	Policy        string                 `protobuf:"bytes,2,opt,name=policy,proto3" json:"policy,omitempty"` // سیاست ترافیک (مثلاً "mimic-http2-api")
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`         // UUID
+	Policy        string                 `protobuf:"bytes,2,opt,name=policy,proto3" json:"policy,omitempty"` // optional traffic profile name
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -73,9 +76,12 @@ func (x *User) GetPolicy() string {
 	return ""
 }
 
+// =====================
+// Account (used internally)
+// =====================
 type Account struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"` // UUID کاربر
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -117,6 +123,9 @@ func (x *Account) GetId() string {
 	return ""
 }
 
+// =====================
+// Inbound configuration
+// =====================
 type InboundConfig struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Clients       []*User                `protobuf:"bytes,1,rep,name=clients,proto3" json:"clients,omitempty"`
@@ -169,9 +178,12 @@ func (x *InboundConfig) GetFallback() *Fallback {
 	return nil
 }
 
+// =====================
+// Fallback config
+// =====================
 type Fallback struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Dest          uint32                 `protobuf:"varint,1,opt,name=dest,proto3" json:"dest,omitempty"` // پورت مقصد fallback (مثلاً 80)
+	Dest          uint32                 `protobuf:"varint,1,opt,name=dest,proto3" json:"dest,omitempty"` // fallback port
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -213,11 +225,14 @@ func (x *Fallback) GetDest() uint32 {
 	return 0
 }
 
+// =====================
+// Outbound configuration
+// =====================
 type OutboundConfig struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Address       string                 `protobuf:"bytes,1,opt,name=address,proto3" json:"address,omitempty"`
 	Port          uint32                 `protobuf:"varint,2,opt,name=port,proto3" json:"port,omitempty"`
-	Id            string                 `protobuf:"bytes,3,opt,name=id,proto3" json:"id,omitempty"` // UUID کلاینت
+	Id            string                 `protobuf:"bytes,3,opt,name=id,proto3" json:"id,omitempty"` // UUID
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -277,15 +292,15 @@ var File_proxy_reflex_config_proto protoreflect.FileDescriptor
 
 const file_proxy_reflex_config_proto_rawDesc = "" +
 	"\n" +
-	"\x19proxy/reflex/config.proto\x12\freflex.proxy\".\n" +
+	"\x19proxy/reflex/config.proto\x12\x06reflex\".\n" +
 	"\x04User\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n" +
 	"\x06policy\x18\x02 \x01(\tR\x06policy\"\x19\n" +
 	"\aAccount\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\"q\n" +
-	"\rInboundConfig\x12,\n" +
-	"\aclients\x18\x01 \x03(\v2\x12.reflex.proxy.UserR\aclients\x122\n" +
-	"\bfallback\x18\x02 \x01(\v2\x16.reflex.proxy.FallbackR\bfallback\"\x1e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\"e\n" +
+	"\rInboundConfig\x12&\n" +
+	"\aclients\x18\x01 \x03(\v2\f.reflex.UserR\aclients\x12,\n" +
+	"\bfallback\x18\x02 \x01(\v2\x10.reflex.FallbackR\bfallback\"\x1e\n" +
 	"\bFallback\x12\x12\n" +
 	"\x04dest\x18\x01 \x01(\rR\x04dest\"N\n" +
 	"\x0eOutboundConfig\x12\x18\n" +
@@ -307,15 +322,15 @@ func file_proxy_reflex_config_proto_rawDescGZIP() []byte {
 
 var file_proxy_reflex_config_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_proxy_reflex_config_proto_goTypes = []any{
-	(*User)(nil),           // 0: reflex.proxy.User
-	(*Account)(nil),        // 1: reflex.proxy.Account
-	(*InboundConfig)(nil),  // 2: reflex.proxy.InboundConfig
-	(*Fallback)(nil),       // 3: reflex.proxy.Fallback
-	(*OutboundConfig)(nil), // 4: reflex.proxy.OutboundConfig
+	(*User)(nil),           // 0: reflex.User
+	(*Account)(nil),        // 1: reflex.Account
+	(*InboundConfig)(nil),  // 2: reflex.InboundConfig
+	(*Fallback)(nil),       // 3: reflex.Fallback
+	(*OutboundConfig)(nil), // 4: reflex.OutboundConfig
 }
 var file_proxy_reflex_config_proto_depIdxs = []int32{
-	0, // 0: reflex.proxy.InboundConfig.clients:type_name -> reflex.proxy.User
-	3, // 1: reflex.proxy.InboundConfig.fallback:type_name -> reflex.proxy.Fallback
+	0, // 0: reflex.InboundConfig.clients:type_name -> reflex.User
+	3, // 1: reflex.InboundConfig.fallback:type_name -> reflex.Fallback
 	2, // [2:2] is the sub-list for method output_type
 	2, // [2:2] is the sub-list for method input_type
 	2, // [2:2] is the sub-list for extension type_name
