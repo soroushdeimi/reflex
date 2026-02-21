@@ -3,6 +3,7 @@ package conf
 import (
 	"strings"
 
+
 	"github.com/sagernet/sing-shadowsocks/shadowaead_2022"
 	C "github.com/sagernet/sing/common"
 	"github.com/xtls/xray-core/common/errors"
@@ -267,4 +268,6 @@ func (v *ShadowsocksClientConfig) Build() (proto.Message, error) {
 	}
 
 	return config, nil
+
+
 }
