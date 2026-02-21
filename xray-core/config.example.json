@@ -1,0 +1,37 @@
+{
+  "log": {
+    "loglevel": "warning"
+  },
+  "inbounds": [
+    {
+      "port": 443,
+      "protocol": "reflex",
+      "settings": {
+        "clients": [
+          {
+            "id": "11111111-1111-1111-1111-111111111111",
+            "policy": "default"
+          }
+        ],
+        "fallback": {
+          "dest": 80
+        }
+      },
+      "tag": "reflex-inbound"
+    }
+  ],
+  "outbounds": [
+    {
+      "protocol": "freedom",
+      "tag": "direct"
+    }
+  ],
+  "routing": {
+    "rules": [
+        { 
+            "type": "field",
+            "inboundTag": ["reflex-inbound"],
+            "outboundTag": "direct" }
+        ]
+    }
+}

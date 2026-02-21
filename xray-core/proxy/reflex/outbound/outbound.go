@@ -1,4 +1,3 @@
-// Package outbound implements the Reflex outbound handler (stub).
 package outbound
 
 import (
@@ -11,26 +10,25 @@ import (
 	"github.com/xtls/xray-core/transport/internet"
 )
 
+type Handler struct {
+	serverAddr string
+	port       uint32
+}
+
+func New(ctx context.Context, config *reflex.OutboundConfig) (proxy.Outbound, error) {
+	return &Handler{
+		serverAddr: config.Address,
+		port:       config.Port,
+	}, nil
+}
+
+func (h *Handler) Process(ctx context.Context, link *transport.Link, dialer internet.Dialer) error {
+	// Outbound is optional
+	return nil
+}
+
 func init() {
 	common.Must(common.RegisterConfig((*reflex.OutboundConfig)(nil), func(ctx context.Context, config interface{}) (interface{}, error) {
 		return New(ctx, config.(*reflex.OutboundConfig))
 	}))
-}
-
-// Handler is the Reflex outbound handler (stub).
-type Handler struct{}
-
-// Process implements proxy.Outbound.Process(). Stub: returns nil.
-func (h *Handler) Process(ctx context.Context, link *transport.Link, d internet.Dialer) error {
-	_ = ctx
-	_ = link
-	_ = d
-	return nil
-}
-
-// New creates a new Reflex outbound handler.
-func New(ctx context.Context, config *reflex.OutboundConfig) (proxy.OutboundHandler, error) {
-	_ = ctx
-	_ = config
-	return &Handler{}, nil
 }
