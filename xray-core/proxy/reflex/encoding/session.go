@@ -3,6 +3,8 @@ package encoding
 import (
   "crypto/cipher"
   "encoding/binary"
+  "sync"
+
   "golang.org/x/crypto/chacha20poly1305"
 )
 
@@ -11,6 +13,7 @@ type Session struct {
   aead       cipher.AEAD
   readNonce  uint64
   writeNonce uint64
+  mu         sync.Mutex
 }
 
 // NewSession: creates a new session with the given key
@@ -51,4 +54,10 @@ func (s *Session) Decrypt(plaintext []byte) ([]byte, error) {
     }
   return plaintext, nil
 }
-  
+
+// makeNonce: creates a 12 byte nonce from a counter
+func makeNonce(counter uint64) [12]byte {
+  var nonce [12]byte
+  binary.BigEndian.PutUint64(nonce[4:], counter)
+  return nonce
+}
