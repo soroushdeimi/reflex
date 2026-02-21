@@ -6,7 +6,9 @@ import (
     "io"
 
     "github.com/xtls/xray-core/common"
+    "github.com/xtls/xray-core/common/buf"
     "github.com/xtls/xray-core/common/net"
+    "github.com/xtls/xray-core/common/session"
     "github.com/xtls/xray-core/common/protocol"
     "github.com/xtls/xray-core/features/routing"
     "github.com/xtls/xray-core/proxy/reflex/encoding"
@@ -72,14 +74,51 @@ func (h *Handler) handleSession(ctx context.Context, reader io.Reader, conn stat
     }
 }
 
-
-
 // handleData: forwards data to upstream and handles responses
 func (h *Handler) handleData(ctx context.Context, data []byte, conn stat.Connection, dispatcher routing.Dispatcher, sess *encoding.Session, user *protocol.MemoryUser) error {
-    // ToDO
+    // parse destination from the data frame
+    dest, remaining, err := decodeAddress(data)
+    if err != nil {
+        return err
+    }
+
+    // add user info to context for logging/policy
+    ctx = session.ContextWithInbound(ctx, &session.Inbound{
+        User: user,
+    })
+
+    // dispatch to target
+    link, err := dispatcher.Dispatch(ctx, dest)
+    if err != nil {
+        return err
+    }
+
+    // send any remaining data that came with the first frame
+    if len(remaining) > 0 {
+        if err := link.Writer.WriteMultiBuffer(buf.MultiBuffer{buf.FromBytes(remaining)}); err != nil {
+            return err
+        }
+    }
+
+    // handle responses from target: read from upstream and send back to client
+    go func() {
+        defer link.Writer.Close()
+        for {
+            mb, err := link.Reader.ReadMultiBuffer()
+            if err != nil {
+                return
+            }
+            for _, b := range mb {
+                if err := sess.WriteFrame(conn, encoding.FrameTypeData, b.Bytes()); err != nil {
+                    return
+                }
+                b.Release()
+            }
+        }
+    }()
+
     return nil
 }
-
 
 // decodeAddress: parses the destination address from the first data frame
 // format: [addrType(1)][port(2)][addr...][remaining data]
