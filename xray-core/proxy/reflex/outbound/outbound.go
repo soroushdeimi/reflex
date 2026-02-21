@@ -1,3 +1,4 @@
+// Package outbound implements the Reflex outbound handler.
 package outbound
 
 import (

@@ -1,3 +1,4 @@
+// Package inbound implements the Reflex inbound handler.
 package inbound
 
 import (
