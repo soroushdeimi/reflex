@@ -6,6 +6,7 @@ require (
 	github.com/cloudflare/circl v1.6.2
 	github.com/ghodss/yaml v1.0.1-0.20220118164431-d8423dcdf344
 	github.com/golang/mock v1.7.0-rc.1
+	github.com/golang/protobuf v1.5.4
 	github.com/google/go-cmp v0.7.0
 	github.com/gorilla/websocket v1.5.3
 	github.com/miekg/dns v1.1.69
@@ -55,3 +56,7 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+replace github.com/cloudflare/circl => ../local-modules/cloudflare/circl@v1.6.2
+
+replace github.com/klauspost/compress => ../local-modules/klauspost/compress@v1.17.4
