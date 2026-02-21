@@ -19,6 +19,11 @@ const (
 	FrameTypeTiming = 0x03
 	// FrameTypeClose indicates a connection termination frame.
 	FrameTypeClose = 0x04
+
+	// NetworkTCP indicates a TCP network type byte.
+	NetworkTCP = 0x01
+	// NetworkUDP indicates a UDP network type byte.
+	NetworkUDP = 0x02
 )
 
 // Frame represents a decrypted Reflex frame.

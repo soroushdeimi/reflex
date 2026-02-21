@@ -136,6 +136,14 @@ func (h *Handler) Process(ctx context.Context, link *transport.Link, dialer inte
 
 	addrBuf := buf.New()
 	defer addrBuf.Release()
+
+	// Write Network byte
+	networkByte := reflex.NetworkTCP
+	if target.Network == net.Network_UDP {
+		networkByte = reflex.NetworkUDP
+	}
+	addrBuf.WriteByte(byte(networkByte))
+
 	if err := addrParser.WriteAddressPort(addrBuf, target.Address, target.Port); err != nil {
 		return err
 	}

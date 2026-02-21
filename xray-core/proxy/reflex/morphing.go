@@ -34,8 +34,8 @@ var Profiles = map[string]*TrafficProfile{
 	"youtube": {
 		Name: "YouTube",
 		PacketSizes: []PacketSizeDist{
-			{Size: 1450, Weight: 0.8},
-			{Size: 1200, Weight: 0.1},
+			{Size: 1350, Weight: 0.8}, // Reduced from 1450 to stay within safe MTU
+			{Size: 1100, Weight: 0.1},
 			{Size: 800, Weight: 0.1},
 		},
 		Delays: []DelayDist{
@@ -60,8 +60,8 @@ var Profiles = map[string]*TrafficProfile{
 	"web": {
 		Name: "Web Browsing",
 		PacketSizes: []PacketSizeDist{
-			{Size: 1500, Weight: 0.4},
-			{Size: 1000, Weight: 0.3},
+			{Size: 1350, Weight: 0.4}, // Reduced from 1500 to prevent fragmentation
+			{Size: 900, Weight: 0.3},
 			{Size: 500, Weight: 0.2},
 			{Size: 100, Weight: 0.1},
 		},

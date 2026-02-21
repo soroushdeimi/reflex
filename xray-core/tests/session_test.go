@@ -5,6 +5,7 @@ import (
 	"io"
 	"testing"
 	"time"
+
 	"github.com/xtls/xray-core/proxy/reflex"
 )
 
@@ -94,9 +95,9 @@ func TestLargeDataMorphing(t *testing.T) {
 
 	// Profile with small packet size to force chunking
 	p := &reflex.TrafficProfile{
-		Name: "small",
+		Name:        "small",
 		PacketSizes: []reflex.PacketSizeDist{{Size: 100, Weight: 1.0}},
-		Delays: []reflex.DelayDist{{Delay: time.Microsecond, Weight: 1.0}},
+		Delays:      []reflex.DelayDist{{Delay: time.Microsecond, Weight: 1.0}},
 	}
 
 	data := make([]byte, 250) // Should result in several frames
@@ -151,7 +152,7 @@ func TestMorphingStatistics(t *testing.T) {
 		counts[buf.Len()]++
 	}
 
-	expectedSizes := []int{1450, 1200, 800}
+	expectedSizes := []int{1350, 1100, 800}
 	totalFound := 0
 	for _, size := range expectedSizes {
 		count := counts[size]
@@ -208,9 +209,9 @@ func TestCloseFrame(t *testing.T) {
 
 func TestTrafficProfileOverrides(t *testing.T) {
 	p := &reflex.TrafficProfile{
-		Name: "test",
+		Name:        "test",
 		PacketSizes: []reflex.PacketSizeDist{{Size: 100, Weight: 1.0}},
-		Delays: []reflex.DelayDist{{Delay: time.Second, Weight: 1.0}},
+		Delays:      []reflex.DelayDist{{Delay: time.Second, Weight: 1.0}},
 	}
 
 	p.SetNextPacketSize(500)
@@ -234,9 +235,9 @@ func TestControlFrames(t *testing.T) {
 	key := make([]byte, 32)
 	s, _ := reflex.NewSession(key, key)
 	p := &reflex.TrafficProfile{
-		Name: "test",
+		Name:        "test",
 		PacketSizes: []reflex.PacketSizeDist{{Size: 100, Weight: 1.0}},
-		Delays: []reflex.DelayDist{{Delay: time.Second, Weight: 1.0}},
+		Delays:      []reflex.DelayDist{{Delay: time.Second, Weight: 1.0}},
 	}
 
 	// Test Padding Control

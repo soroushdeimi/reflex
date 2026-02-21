@@ -10,10 +10,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/xtls/xray-core/common/net"
-	"github.com/xtls/xray-core/transport/internet/stat"
 	"github.com/xtls/xray-core/proxy/reflex"
 	"github.com/xtls/xray-core/proxy/reflex/inbound"
+	"github.com/xtls/xray-core/transport/internet/stat"
 )
 
 func TestInboundHandshakeDetection(t *testing.T) {
@@ -88,8 +87,8 @@ func TestMemoryAccount(t *testing.T) {
 func TestNetwork(t *testing.T) {
 	h := &inbound.Handler{}
 	networks := h.Network()
-	if len(networks) != 1 || networks[0] != net.Network_TCP {
-		t.Error("Network() should return TCP only")
+	if len(networks) != 2 {
+		t.Errorf("expected 2 networks, got %d", len(networks))
 	}
 }
 

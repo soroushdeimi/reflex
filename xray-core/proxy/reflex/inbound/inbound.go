@@ -6,20 +6,21 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/binary"
-	xtls "github.com/xtls/xray-core/transport/internet/tls"
-	"github.com/xtls/xray-core/common/errors"
 	"io"
 	"time"
 
+	"github.com/xtls/xray-core/common/errors"
+	xtls "github.com/xtls/xray-core/transport/internet/tls"
+
 	"github.com/google/uuid"
 	"github.com/xtls/xray-core/common"
+	"github.com/xtls/xray-core/common/antireplay"
 	"github.com/xtls/xray-core/common/buf"
 	"github.com/xtls/xray-core/common/net"
 	"github.com/xtls/xray-core/common/protocol"
 	"github.com/xtls/xray-core/features/routing"
 	"github.com/xtls/xray-core/proxy"
 	"github.com/xtls/xray-core/proxy/reflex"
-	"github.com/xtls/xray-core/common/antireplay"
 	"github.com/xtls/xray-core/transport/internet/stat"
 	"google.golang.org/protobuf/proto"
 )
@@ -58,7 +59,7 @@ type FallbackConfig struct {
 }
 
 func (h *Handler) Network() []net.Network {
-	return []net.Network{net.Network_TCP}
+	return []net.Network{net.Network_TCP, net.Network_UDP}
 }
 
 // Process handles the incoming connection and performs protocol detection and session management.
@@ -143,17 +144,17 @@ func (h *Handler) HandleReflexMagic(ctx context.Context, reader *bufio.Reader, c
 }
 
 func (h *Handler) HandleReflexHTTP(ctx context.Context, reader *bufio.Reader, conn stat.Connection, dispatcher routing.Dispatcher) error {
-	line, _, err := reader.ReadLine()
+	line, err := reader.ReadString('\n')
 	if err != nil {
 		return err
 	}
-	if string(line[0:4]) != "POST" {
+	if len(line) < 4 || line[0:4] != "POST" {
 		return errors.New("invalid HTTP POST")
 	}
 
 	for {
-		line, _, err := reader.ReadLine()
-		if err != nil || len(line) == 0 {
+		line, err := reader.ReadString('\n')
+		if err != nil || line == "\r\n" || line == "\n" {
 			break
 		}
 	}
@@ -276,12 +277,28 @@ func (h *Handler) handleSession(ctx context.Context, reader *bufio.Reader, conn 
 	)
 
 	payloadReader := bytes.NewReader(frame.Payload)
+
+	// Read Network byte
+	networkByte, err := payloadReader.ReadByte()
+	if err != nil {
+		return err
+	}
+
 	addr, port, err := addrParser.ReadAddressPort(nil, payloadReader)
 	if err != nil {
 		return err
 	}
 
-	dest := net.TCPDestination(addr, port)
+	network := net.Network_TCP
+	if networkByte == reflex.NetworkUDP {
+		network = net.Network_UDP
+	}
+
+	dest := net.Destination{
+		Network: network,
+		Address: addr,
+		Port:    port,
+	}
 	link, err := dispatcher.Dispatch(ctx, dest)
 	if err != nil {
 		return err
@@ -368,7 +385,7 @@ func New(ctx context.Context, config *reflex.InboundConfig) (proxy.Inbound, erro
 
 	for _, client := range config.Clients {
 		handler.clients = append(handler.clients, &protocol.MemoryUser{
-			Email:   client.Id,
+			Email: client.Id,
 			Account: &MemoryAccount{
 				Id:     client.Id,
 				Policy: client.Policy,
