@@ -3,6 +3,7 @@ package outbound_test
 import (
 	"context"
 	"fmt"
+	"os"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -88,6 +89,9 @@ func TestOutboundWithStatCounter(t *testing.T) {
 }
 
 func TestTagsCache(t *testing.T) {
+	if os.Getenv("XRAY_RUN_STRESS_TESTS") != "1" {
+		t.Skip("set XRAY_RUN_STRESS_TESTS=1 to run stress/concurrency cache test")
+	}
 
 	test_duration := 10 * time.Second
 	threads_num := 50

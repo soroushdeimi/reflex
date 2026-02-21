@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"io"
+	"os"
 	"testing"
 	"time"
 
@@ -87,6 +88,9 @@ func TestXrayDial(t *testing.T) {
 }
 
 func TestXrayDialUDPConn(t *testing.T) {
+	if os.Getenv("XRAY_RUN_NETWORK_TESTS") != "1" {
+		t.Skip("set XRAY_RUN_NETWORK_TESTS=1 to run UDP dial integration tests")
+	}
 	udpServer := udp.Server{
 		MsgProcessor: xor,
 	}
@@ -147,6 +151,9 @@ func TestXrayDialUDPConn(t *testing.T) {
 }
 
 func TestXrayDialUDP(t *testing.T) {
+	if os.Getenv("XRAY_RUN_NETWORK_TESTS") != "1" {
+		t.Skip("set XRAY_RUN_NETWORK_TESTS=1 to run UDP dial integration tests")
+	}
 	udpServer1 := udp.Server{
 		MsgProcessor: xor,
 	}

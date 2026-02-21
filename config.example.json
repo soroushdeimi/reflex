@@ -1,0 +1,44 @@
+{
+  "inbounds": [
+    {
+      "tag": "reflex-in",
+      "listen": "0.0.0.0",
+      "port": 8443,
+      "protocol": "reflex",
+      "settings": {
+        "clients": [
+          {
+            "id": "11111111-1111-1111-1111-111111111111",
+            "policy": "mimic-http2-api"
+          }
+        ],
+        "fallback": {
+          "dest": 8080
+        }
+      },
+      "streamSettings": {
+        "network": "tcp"
+      }
+    }
+  ],
+  "outbounds": [
+    {
+      "tag": "direct",
+      "protocol": "freedom"
+    },
+    {
+      "tag": "block",
+      "protocol": "blackhole"
+    }
+  ],
+  "routing": {
+    "domainStrategy": "AsIs",
+    "rules": [
+      {
+        "type": "field",
+        "inboundTag": ["reflex-in"],
+        "outboundTag": "direct"
+      }
+    ]
+  }
+}

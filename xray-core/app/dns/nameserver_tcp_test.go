@@ -3,6 +3,7 @@ package dns_test
 import (
 	"context"
 	"net/url"
+	"os"
 	"testing"
 	"time"
 
@@ -13,7 +14,15 @@ import (
 	dns_feature "github.com/xtls/xray-core/features/dns"
 )
 
+func requireNetworkTests(t *testing.T) {
+	t.Helper()
+	if os.Getenv("XRAY_RUN_NETWORK_TESTS") != "1" {
+		t.Skip("set XRAY_RUN_NETWORK_TESTS=1 to run network-dependent DNS tests")
+	}
+}
+
 func TestTCPLocalNameServer(t *testing.T) {
+	requireNetworkTests(t)
 	url, err := url.Parse("tcp+local://8.8.8.8")
 	common.Must(err)
 	s, err := NewTCPLocalNameServer(url, false, false, 0, net.IP(nil))
@@ -31,6 +40,7 @@ func TestTCPLocalNameServer(t *testing.T) {
 }
 
 func TestTCPLocalNameServerWithCache(t *testing.T) {
+	requireNetworkTests(t)
 	url, err := url.Parse("tcp+local://8.8.8.8")
 	common.Must(err)
 	s, err := NewTCPLocalNameServer(url, false, false, 0, net.IP(nil))
@@ -59,6 +69,7 @@ func TestTCPLocalNameServerWithCache(t *testing.T) {
 }
 
 func TestTCPLocalNameServerWithIPv4Override(t *testing.T) {
+	requireNetworkTests(t)
 	url, err := url.Parse("tcp+local://8.8.8.8")
 	common.Must(err)
 	s, err := NewTCPLocalNameServer(url, false, false, 0, net.IP(nil))
@@ -83,6 +94,7 @@ func TestTCPLocalNameServerWithIPv4Override(t *testing.T) {
 }
 
 func TestTCPLocalNameServerWithIPv6Override(t *testing.T) {
+	requireNetworkTests(t)
 	url, err := url.Parse("tcp+local://8.8.8.8")
 	common.Must(err)
 	s, err := NewTCPLocalNameServer(url, false, false, 0, net.IP(nil))

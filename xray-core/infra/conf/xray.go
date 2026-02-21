@@ -27,6 +27,7 @@ var (
 		"vless":         func() interface{} { return new(VLessInboundConfig) },
 		"vmess":         func() interface{} { return new(VMessInboundConfig) },
 		"trojan":        func() interface{} { return new(TrojanServerConfig) },
+		"reflex":        func() interface{} { return new(ReflexInboundConfig) },
 		"wireguard":     func() interface{} { return &WireGuardConfig{IsClient: false} },
 	}, "protocol", "settings")
 
@@ -42,6 +43,7 @@ var (
 		"vless":       func() interface{} { return new(VLessOutboundConfig) },
 		"vmess":       func() interface{} { return new(VMessOutboundConfig) },
 		"trojan":      func() interface{} { return new(TrojanClientConfig) },
+		"reflex":      func() interface{} { return new(ReflexOutboundConfig) },
 		"dns":         func() interface{} { return new(DNSOutboundConfig) },
 		"wireguard":   func() interface{} { return &WireGuardConfig{IsClient: true} },
 	}, "protocol", "settings")
@@ -116,13 +118,13 @@ func (m *MuxConfig) Build() (*proxyman.MultiplexingConfig, error) {
 }
 
 type InboundDetourConfig struct {
-	Protocol       string                         `json:"protocol"`
-	PortList       *PortList                      `json:"port"`
-	ListenOn       *Address                       `json:"listen"`
-	Settings       *json.RawMessage               `json:"settings"`
-	Tag            string                         `json:"tag"`
-	StreamSetting  *StreamConfig                  `json:"streamSettings"`
-	SniffingConfig *SniffingConfig                `json:"sniffing"`
+	Protocol       string           `json:"protocol"`
+	PortList       *PortList        `json:"port"`
+	ListenOn       *Address         `json:"listen"`
+	Settings       *json.RawMessage `json:"settings"`
+	Tag            string           `json:"tag"`
+	StreamSetting  *StreamConfig    `json:"streamSettings"`
+	SniffingConfig *SniffingConfig  `json:"sniffing"`
 }
 
 // Build implements Buildable.

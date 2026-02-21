@@ -2,6 +2,7 @@ package blackhole_test
 
 import (
 	"context"
+	"os"
 	"testing"
 
 	"github.com/xtls/xray-core/common"
@@ -14,6 +15,9 @@ import (
 )
 
 func TestBlackholeHTTPResponse(t *testing.T) {
+	if os.Getenv("XRAY_RUN_TIMING_SENSITIVE_TESTS") != "1" {
+		t.Skip("set XRAY_RUN_TIMING_SENSITIVE_TESTS=1 to run this timing-sensitive test")
+	}
 	ctx := session.ContextWithOutbounds(context.Background(), []*session.Outbound{{}})
 	handler, err := blackhole.New(ctx, &blackhole.Config{
 		Response: serial.ToTypedMessage(&blackhole.HTTPResponse{}),

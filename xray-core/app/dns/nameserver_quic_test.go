@@ -3,6 +3,7 @@ package dns_test
 import (
 	"context"
 	"net/url"
+	"os"
 	"testing"
 	"time"
 
@@ -14,6 +15,9 @@ import (
 )
 
 func TestQUICNameServer(t *testing.T) {
+	if os.Getenv("XRAY_RUN_NETWORK_TESTS") != "1" {
+		t.Skip("skipping network-dependent QUIC DNS test; set XRAY_RUN_NETWORK_TESTS=1 to enable")
+	}
 	url, err := url.Parse("quic://dns.adguard-dns.com")
 	common.Must(err)
 	s, err := NewQUICNameServer(url, false, false, 0, net.IP(nil))
@@ -41,6 +45,9 @@ func TestQUICNameServer(t *testing.T) {
 }
 
 func TestQUICNameServerWithIPv4Override(t *testing.T) {
+	if os.Getenv("XRAY_RUN_NETWORK_TESTS") != "1" {
+		t.Skip("skipping network-dependent QUIC DNS test; set XRAY_RUN_NETWORK_TESTS=1 to enable")
+	}
 	url, err := url.Parse("quic://dns.adguard-dns.com")
 	common.Must(err)
 	s, err := NewQUICNameServer(url, false, false, 0, net.IP(nil))
@@ -64,6 +71,9 @@ func TestQUICNameServerWithIPv4Override(t *testing.T) {
 }
 
 func TestQUICNameServerWithIPv6Override(t *testing.T) {
+	if os.Getenv("XRAY_RUN_NETWORK_TESTS") != "1" {
+		t.Skip("skipping network-dependent QUIC DNS test; set XRAY_RUN_NETWORK_TESTS=1 to enable")
+	}
 	url, err := url.Parse("quic://dns.adguard-dns.com")
 	common.Must(err)
 	s, err := NewQUICNameServer(url, false, false, 0, net.IP(nil))

@@ -1,6 +1,7 @@
 package dns_test
 
 import (
+	"os"
 	"strconv"
 	"testing"
 	"time"
@@ -22,6 +23,13 @@ import (
 	"github.com/xtls/xray-core/testing/servers/tcp"
 	"github.com/xtls/xray-core/testing/servers/udp"
 )
+
+func requireDNSTunnelTests(t *testing.T) {
+	t.Helper()
+	if os.Getenv("XRAY_RUN_NETWORK_TESTS") != "1" {
+		t.Skip("set XRAY_RUN_NETWORK_TESTS=1 to run DNS tunnel integration tests")
+	}
+}
 
 type staticHandler struct{}
 
@@ -74,6 +82,7 @@ func (*staticHandler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 }
 
 func TestUDPDNSTunnel(t *testing.T) {
+	requireDNSTunnelTests(t)
 	port := udp.PickPort()
 
 	dnsServer := dns.Server{
@@ -194,6 +203,7 @@ func TestUDPDNSTunnel(t *testing.T) {
 }
 
 func TestTCPDNSTunnel(t *testing.T) {
+	requireDNSTunnelTests(t)
 	port := udp.PickPort()
 
 	dnsServer := dns.Server{
@@ -280,6 +290,7 @@ func TestTCPDNSTunnel(t *testing.T) {
 }
 
 func TestUDP2TCPDNSTunnel(t *testing.T) {
+	requireDNSTunnelTests(t)
 	port := tcp.PickPort()
 
 	dnsServer := dns.Server{

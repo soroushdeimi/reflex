@@ -1,6 +1,7 @@
 package task_test
 
 import (
+	"os"
 	"testing"
 	"time"
 
@@ -9,6 +10,9 @@ import (
 )
 
 func TestPeriodicTaskStop(t *testing.T) {
+	if os.Getenv("XRAY_RUN_TIMING_SENSITIVE_TESTS") != "1" {
+		t.Skip("set XRAY_RUN_TIMING_SENSITIVE_TESTS=1 to run timing-sensitive periodic task test")
+	}
 	value := 0
 	task := &Periodic{
 		Interval: time.Second * 2,

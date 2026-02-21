@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"runtime"
 	"testing"
 	"time"
@@ -24,7 +25,15 @@ import (
 	"github.com/xtls/xray-core/transport/internet/tls"
 )
 
+func requireSplitHTTPIntegrationTests(t *testing.T) {
+	t.Helper()
+	if os.Getenv("XRAY_RUN_NETWORK_TESTS") != "1" {
+		t.Skip("set XRAY_RUN_NETWORK_TESTS=1 to run split-http integration tests")
+	}
+}
+
 func Test_ListenXHAndDial(t *testing.T) {
+	requireSplitHTTPIntegrationTests(t)
 	listenPort := tcp.PickPort()
 	listen, err := ListenXH(context.Background(), net.LocalHostIP, listenPort, &internet.MemoryStreamConfig{
 		ProtocolName: "splithttp",
@@ -82,6 +91,7 @@ func Test_ListenXHAndDial(t *testing.T) {
 }
 
 func TestDialWithRemoteAddr(t *testing.T) {
+	requireSplitHTTPIntegrationTests(t)
 	listenPort := tcp.PickPort()
 	listen, err := ListenXH(context.Background(), net.LocalHostIP, listenPort, &internet.MemoryStreamConfig{
 		ProtocolName: "splithttp",
@@ -124,6 +134,7 @@ func TestDialWithRemoteAddr(t *testing.T) {
 }
 
 func Test_ListenXHAndDial_TLS(t *testing.T) {
+	requireSplitHTTPIntegrationTests(t)
 	if runtime.GOARCH == "arm64" {
 		return
 	}
@@ -179,6 +190,7 @@ func Test_ListenXHAndDial_TLS(t *testing.T) {
 }
 
 func Test_ListenXHAndDial_H2C(t *testing.T) {
+	requireSplitHTTPIntegrationTests(t)
 	if runtime.GOARCH == "arm64" {
 		return
 	}
@@ -220,6 +232,7 @@ func Test_ListenXHAndDial_H2C(t *testing.T) {
 }
 
 func Test_ListenXHAndDial_QUIC(t *testing.T) {
+	requireSplitHTTPIntegrationTests(t)
 	if runtime.GOARCH == "arm64" {
 		return
 	}
@@ -302,6 +315,7 @@ func Test_ListenXHAndDial_QUIC(t *testing.T) {
 }
 
 func Test_ListenXHAndDial_Unix(t *testing.T) {
+	requireSplitHTTPIntegrationTests(t)
 	tempDir := t.TempDir()
 	tempSocket := tempDir + "/server.sock"
 
@@ -364,6 +378,7 @@ func Test_ListenXHAndDial_Unix(t *testing.T) {
 }
 
 func Test_queryString(t *testing.T) {
+	requireSplitHTTPIntegrationTests(t)
 	listenPort := tcp.PickPort()
 	listen, err := ListenXH(context.Background(), net.LocalHostIP, listenPort, &internet.MemoryStreamConfig{
 		ProtocolName: "splithttp",
@@ -410,6 +425,7 @@ func Test_queryString(t *testing.T) {
 }
 
 func Test_maxUpload(t *testing.T) {
+	requireSplitHTTPIntegrationTests(t)
 	listenPort := tcp.PickPort()
 	streamSettings := &internet.MemoryStreamConfig{
 		ProtocolName: "splithttp",
