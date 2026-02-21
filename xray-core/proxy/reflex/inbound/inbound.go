@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"io"
 	"strconv"
+	"time"
 
 	"github.com/xtls/xray-core/common"
 	"github.com/xtls/xray-core/common/net"
@@ -19,8 +20,10 @@ import (
 )
 
 type Handler struct {
-    clients []*protocol.MemoryUser
+    clients  []*protocol.MemoryUser
     fallback *FallbackConfig
+
+    replay *replayCache
 }
 
 // MemoryAccount برای ذخیره اطلاعات کاربر
@@ -118,6 +121,11 @@ func (h *Handler) handleReflexMagic(reader *bufio.Reader, conn stat.Connection, 
 	if _, err := io.ReadFull(reader, clientHS.Nonce[:]); err != nil {
 		return err
 	}
+
+    if !h.checkAntiReplay(clientHS.Timestamp, clientHS.Nonce) {
+        // stealth: fallback
+        return h.handleFallback(ctx, reader, conn)
+    }
     
     return h.processHandshake(reader, conn, dispatcher, ctx, *clientHS)
 }
@@ -166,6 +174,7 @@ func init() {
 func New(ctx context.Context, config *reflex.InboundConfig) (proxy.Inbound, error) {
     handler := &Handler{
         clients: make([]*protocol.MemoryUser, 0),
+        replay:  newReplayCache(10 * time.Minute), // TTL قابل تنظیم
     }
     
     // تبدیل config به handler
@@ -184,4 +193,19 @@ func New(ctx context.Context, config *reflex.InboundConfig) (proxy.Inbound, erro
     }
     
     return handler, nil
+}
+
+func (h *Handler) checkAntiReplay(ts int64, nonce [16]byte) bool {
+    now := time.Now().Unix()
+
+    // Timestamp window
+    if ts < now-300 || ts > now+60 {
+        return false
+    }
+
+    // Nonce replay cache
+    if h.replay != nil && h.replay.SeenOrAdd(nonce, now) {
+        return false
+    }
+    return true
 }
