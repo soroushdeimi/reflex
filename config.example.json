@@ -1,0 +1,50 @@
+{
+  "log": {
+    "loglevel": "warning"
+  },
+  "inbounds": [
+    {
+      "port": 443,
+      "protocol": "reflex",
+      "settings": {
+        "clients": [
+          {
+            "id": "b831381d-6324-4d53-ad4f-8cda48b30811",
+            "policy": "youtube"
+          },
+          {
+            "id": "e5c89a12-3f45-4b6c-9d78-1a2b3c4d5e6f",
+            "policy": "zoom"
+          },
+          {
+            "id": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "policy": "http2-api"
+          }
+        ],
+        "fallback": {
+          "dest": 8080
+        }
+      },
+      "streamSettings": {
+        "network": "tcp"
+      }
+    }
+  ],
+  "outbounds": [
+    {
+      "protocol": "reflex",
+      "settings": {
+        "address": "your-server.example.com",
+        "port": 443,
+        "id": "b831381d-6324-4d53-ad4f-8cda48b30811"
+      },
+      "streamSettings": {
+        "network": "tcp"
+      }
+    },
+    {
+      "protocol": "freedom",
+      "tag": "direct"
+    }
+  ]
+}

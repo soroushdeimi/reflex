@@ -24,6 +24,7 @@ var (
 		"shadowsocks":   func() interface{} { return new(ShadowsocksServerConfig) },
 		"mixed":         func() interface{} { return new(SocksServerConfig) },
 		"socks":         func() interface{} { return new(SocksServerConfig) },
+		"reflex":        func() interface{} { return new(ReflexInboundConfig) },
 		"vless":         func() interface{} { return new(VLessInboundConfig) },
 		"vmess":         func() interface{} { return new(VMessInboundConfig) },
 		"trojan":        func() interface{} { return new(TrojanServerConfig) },
@@ -39,6 +40,7 @@ var (
 		"http":        func() interface{} { return new(HTTPClientConfig) },
 		"shadowsocks": func() interface{} { return new(ShadowsocksClientConfig) },
 		"socks":       func() interface{} { return new(SocksClientConfig) },
+		"reflex":      func() interface{} { return new(ReflexOutboundConfig) },
 		"vless":       func() interface{} { return new(VLessOutboundConfig) },
 		"vmess":       func() interface{} { return new(VMessOutboundConfig) },
 		"trojan":      func() interface{} { return new(TrojanClientConfig) },
@@ -116,13 +118,13 @@ func (m *MuxConfig) Build() (*proxyman.MultiplexingConfig, error) {
 }
 
 type InboundDetourConfig struct {
-	Protocol       string                         `json:"protocol"`
-	PortList       *PortList                      `json:"port"`
-	ListenOn       *Address                       `json:"listen"`
-	Settings       *json.RawMessage               `json:"settings"`
-	Tag            string                         `json:"tag"`
-	StreamSetting  *StreamConfig                  `json:"streamSettings"`
-	SniffingConfig *SniffingConfig                `json:"sniffing"`
+	Protocol       string           `json:"protocol"`
+	PortList       *PortList        `json:"port"`
+	ListenOn       *Address         `json:"listen"`
+	Settings       *json.RawMessage `json:"settings"`
+	Tag            string           `json:"tag"`
+	StreamSetting  *StreamConfig    `json:"streamSettings"`
+	SniffingConfig *SniffingConfig  `json:"sniffing"`
 }
 
 // Build implements Buildable.

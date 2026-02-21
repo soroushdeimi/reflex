@@ -468,7 +468,7 @@ func TestXrayIntegration(t *testing.T) {
 func BenchmarkReflexEncryption(b *testing.B) {
     session, _ := NewSession(testKey)
     data := make([]byte, 1024)
-    
+
     b.ResetTimer()
     for i := 0; i < b.N; i++ {
         session.encrypt(data)
@@ -499,16 +499,16 @@ Performance comparison اختیاریه، ولی اگه انجام بدی، ام
 ### چک‌لیست کامل تست
 
 **تست‌های پایه (اینها رو حتماً انجام بده)**:
-- [ ] همه تست‌ها pass می‌شن (`go test ./...`)
-- [ ] Coverage حداقل 60-70% هست (`go test -cover ./...`)
-- [ ] Linting pass می‌شه (`golangci-lint run ./...`)
-- [ ] Race detection pass می‌شه (`go test -race ./...`)
-- [ ] Handshake درست کار می‌کنه
-- [ ] رمزنگاری و رمزگشایی درست کار می‌کنه
-- [ ] Fallback به وب‌سرور کار می‌کنه
-- [ ] Replay protection کار می‌کنه
-- [ ] اتصال کامل از کلاینت به سرور کار می‌کنه
-- [ ] داده‌ها بدون خطا منتقل می‌شن
+- [x] همه تست‌ها pass می‌شن (`go test ./...`)
+- [x] Coverage حداقل 60-70% هست (`go test -cover ./...`)
+- [x] Linting pass می‌شه (`golangci-lint run ./...`)
+- [x] Race detection pass می‌شه (`go test -race ./...`)
+- [x] Handshake درست کار می‌کنه
+- [x] رمزنگاری و رمزگشایی درست کار می‌کنه
+- [x] Fallback به وب‌سرور کار می‌کنه
+- [x] Replay protection کار می‌کنه
+- [x] اتصال کامل از کلاینت به سرور کار می‌کنه
+- [x] داده‌ها بدون خطا منتقل می‌شن
 
 **تست‌های پیشرفته (اینها رو هم انجام بده، بهتره)**:
 - [ ] Edge cases تست شده (داده خالی، داده بزرگ، connection بسته، etc.)
@@ -518,8 +518,8 @@ Performance comparison اختیاریه، ولی اگه انجام بدی، ام
 - [ ] Compatibility با نسخه‌های مختلف Go تست شده
 
 **تست‌های اختیاری (اگه وقت داشتی، امتیاز اضافی می‌گیری)**:
-- [ ] Security review انجام شده (fuzzing, timing attack, etc.)
-- [ ] Performance benchmark با پروتکل‌های دیگه مقایسه شده
+- [x] Security review انجام شده (fuzzing, timing attack, etc.)
+- [x] Performance benchmark با پروتکل‌های دیگه مقایسه شده
 
 ### تست دستی
 

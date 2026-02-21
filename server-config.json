@@ -1,0 +1,32 @@
+{
+  "log": {
+    "loglevel": "info"
+  },
+  "inbounds": [
+    {
+      "port": 8443,
+      "protocol": "reflex",
+      "settings": {
+        "clients": [
+          {
+            "id": "b831381d-6324-4d53-ad4f-8cda48b30811",
+            "policy": "youtube"
+          },
+          {
+            "id": "e5c89a12-3f45-4b6c-9d78-1a2b3c4d5e6f",
+            "policy": "zoom"
+          }
+        ],
+        "fallback": {
+          "dest": 8080
+        }
+      }
+    }
+  ],
+  "outbounds": [
+    {
+      "protocol": "freedom",
+      "tag": "direct"
+    }
+  ]
+}

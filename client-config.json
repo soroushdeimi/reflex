@@ -1,0 +1,24 @@
+{
+  "log": {
+    "loglevel": "info"
+  },
+  "inbounds": [
+    {
+      "port": 1080,
+      "protocol": "socks",
+      "settings": {
+        "udp": false
+      }
+    }
+  ],
+  "outbounds": [
+    {
+      "protocol": "reflex",
+      "settings": {
+        "address": "127.0.0.1",
+        "port": 8443,
+        "id": "b831381d-6324-4d53-ad4f-8cda48b30811"
+      }
+    }
+  ]
+}
