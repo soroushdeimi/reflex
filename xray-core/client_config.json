@@ -1,0 +1,30 @@
+{
+  "log": {
+    "loglevel": "debug"
+  },
+  "inbounds": [
+    {
+      "port": 1080,
+      "listen": "127.0.0.1",
+      "protocol": "socks",
+      "settings": {
+        "auth": "noauth",
+        "udp": true
+      }
+    }
+  ],
+  "outbounds": [
+    {
+      "protocol": "reflex",
+      "settings": {
+        "morphing_enabled": true,
+        "address": "127.0.0.1",
+        "port": 8081,
+        "id": "b831381d-6324-4d53-ad4f-8cda48b30811"
+      },
+      "streamSettings": {
+        "network": "tcp"
+      }
+    }
+  ]
+}
