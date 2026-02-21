@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 
 	"github.com/google/uuid"
@@ -119,38 +120,47 @@ func (h *Handler) handleReflexHTTP(reader *bufio.Reader, conn stat.Connection, d
 }
 
 func (h *Handler) processHandshake(reader *bufio.Reader, conn stat.Connection, dispatcher routing.Dispatcher, ctx context.Context, clientHS reflex.ClientHandshake) error {
-	// ۱. احراز هویت
+	// ۱. احراز هویت کاربر
 	user, err := h.authenticateUser(clientHS.UserID)
 	if err != nil {
+		// اگر کاربر معتبر نبود، به Fallback هدایت کن (مرحله ۴)
 		return h.handleFallback(ctx, reader, conn)
 	}
 
-	// ۲. تولید کلید موقت سرور
+	// ۲. تولید کلید موقت سرور (Ephemeral Key Pair)
 	serverPrivateKey, serverPublicKey, err := reflex.GenerateKeyPair()
 	if err != nil {
 		return err
 	}
 
-	// ۳. محاسبه کلید مشترک و Session Key
+	// ۳. محاسبه کلید مشترک (Shared Key) با استفاده از PubKey کلاینت
 	sharedKey := reflex.DeriveSharedKey(serverPrivateKey, clientHS.PublicKey)
 
-	// نکته مهم: سالت باید دقیقاً مشابه کلاینت باشد (Nonce + UserID)
-	salt := append(clientHS.Nonce[:], clientHS.UserID[:]...)
+	// ۴. محاسبه سالت (Salt) - بسیار حیاتی برای هماهنگی با کلاینت
+	// دقت شود: حتماً ۲۴ بایت شامل ۸ بایت نانس کلاینت + ۱۶ بایت یوزر آیدی
+	// اگر در types.go نانس را ۸ بایت کرده باشید، clientHS.Nonce[:] دقیقاً ۸ بایت خواهد بود
+	salt := make([]byte, 0, 24)
+	salt = append(salt, clientHS.Nonce[:]...)
+	salt = append(salt, clientHS.UserID[:]...)
+
 	sessionKey, err := reflex.DeriveSessionKey(sharedKey, salt)
 	if err != nil {
 		return err
 	}
 
-	// ۴. آماده‌سازی و رمزنگاری Policy Grant
-	// یک پالیسی فرضی (مثلاً "access:all")
-	policyData := []byte("access:granted")
+	// لاگ دیباگ برای مقایسه با کلاینت (اولین بایت‌های کلید باید یکی باشند)
+	fmt.Printf("DEBUG (Server): SessionKey (first 4 bytes): %x\n", sessionKey[:4])
+	fmt.Printf("DEBUG (Server): Salt used (%d bytes): %x\n", len(salt), salt)
+
+	// ۵. آماده‌سازی و رمزنگاری Policy Grant (مرحله ۵ پیشرفته)
+	policyData := []byte("access:granted") // دیتای پالیسی (می‌تواند از فایل کانفیگ بیاید)
 	encryptedPolicy, err := h.encryptPolicyGrant(policyData, sessionKey)
 	if err != nil {
 		return err
 	}
 
-	// ۵. ارسال پاسخ باینری به کلاینت (طبق انتظار Outbound)
-	// فرمت: [32B ServerPubKey][2B PolicyLen][EncryptedPolicy]
+	// ۶. ارسال پاسخ نهایی به کلاینت (فرمت باینری دقیق)
+	// فرمت: [32B ServerPubKey] + [2B PolicyLen] + [EncryptedPolicy]
 	response := make([]byte, 32+2+len(encryptedPolicy))
 	copy(response[0:32], serverPublicKey[:])
 	binary.BigEndian.PutUint16(response[32:34], uint16(len(encryptedPolicy)))
@@ -160,8 +170,19 @@ func (h *Handler) processHandshake(reader *bufio.Reader, conn stat.Connection, d
 		return err
 	}
 
-	// ۶. ورود به مرحله تبادل دیتای رمز شده (Step 3)
+	// ۷. ورود به مرحله تبادل دیتای رمز شده (Step 3: Encryption & Framing)
+	// اینجا سرور آماده می‌شود تا ترافیک کاربر را رمزگشایی و هدایت کند
 	return h.handleSession(ctx, reader, conn, dispatcher, sessionKey, user)
+}
+
+func (h *Handler) encryptPolicyGrant(data []byte, key []byte) ([]byte, error) {
+	aead, err := reflex.NewCipher(key)
+	if err != nil {
+		return nil, err
+	}
+	// نانس صفر برای اولین بسته رمزنگاری شده در کل کانکشن
+	nonce := make([]byte, aead.NonceSize())
+	return aead.Seal(nil, nonce, data, nil), nil
 }
 
 func (h *Handler) handleSession(ctx context.Context, reader *bufio.Reader, conn stat.Connection, dispatcher routing.Dispatcher, key []byte, user any) error {
@@ -180,16 +201,6 @@ func (h *Handler) authenticateUser(id [16]byte) (*protocol.MemoryUser, error) {
 		}
 	}
 	return nil, errors.New("user not found")
-}
-
-func (h *Handler) encryptPolicyGrant(data []byte, key []byte) ([]byte, error) {
-	aead, err := reflex.NewCipher(key)
-	if err != nil {
-		return nil, err
-	}
-	// استفاده از نانس صفر برای اولین بسته (طبق توافق با کلاینت)
-	nonce := make([]byte, aead.NonceSize())
-	return aead.Seal(nil, nonce, data, nil), nil
 }
 
 func (h *Handler) formatHTTPResponse(hs reflex.ServerHandshake) []byte {

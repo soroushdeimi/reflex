@@ -13,68 +13,66 @@ import (
 	"github.com/xtls/xray-core/common"
 	"github.com/xtls/xray-core/common/buf"
 	"github.com/xtls/xray-core/common/net"
-	"github.com/xtls/xray-core/common/retry"
 	"github.com/xtls/xray-core/common/uuid"
-	"github.com/xtls/xray-core/proxy"
 	"github.com/xtls/xray-core/proxy/reflex"
 	"github.com/xtls/xray-core/transport"
 	"github.com/xtls/xray-core/transport/internet"
 )
 
 type Handler struct {
-	serverAddress net.Destination
+	serverAddress string
+	serverPort    net.Port
 	clientId      string
 }
 
 func (h *Handler) Process(ctx context.Context, link *transport.Link, dialer internet.Dialer) error {
-	var conn net.Conn
-	err := retry.ExponentialBackoff(5, 100).On(func() error {
-		rawConn, err := dialer.Dial(ctx, h.serverAddress)
-		if err != nil {
-			return err
-		}
-		conn = rawConn
-		return nil
-	})
+	destination := net.TCPDestination(net.ParseAddress(h.serverAddress), h.serverPort)
+
+	conn, err := dialer.Dial(ctx, destination)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to dial reflex server %s:%d: %w", h.serverAddress, h.serverPort, err)
 	}
 	defer conn.Close()
 
-	// Step 2: Handshake
 	sessionKey, err := h.clientHandshake(conn)
 	if err != nil {
-		return err
+		return fmt.Errorf("reflex handshake failed: %w", err)
 	}
 
-	// Step 3: Encryption Setup
 	aead, err := reflex.NewCipher(sessionKey)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create cipher: %w", err)
 	}
 
-	// Bidirectional relay  with encryption
 	ctx, cancel := context.WithCancel(ctx)
-	defer cancel() // Ensure resources are freed
+	defer cancel()
 
-	// Upload: Client -> Server
+	errs := make(chan error, 2)
+
 	go func() {
-		_ = h.encryptWrite(link.Reader, conn, aead)
-		cancel()
+		errs <- h.encryptWrite(link.Reader, conn, aead)
 	}()
 
-	// Download: Server -> Client
-	_ = h.readDecrypt(conn, link.Writer, aead)
-	cancel()
+	// ۷. مسیر دانلود
+	go func() {
+		errs <- h.readDecrypt(conn, link.Writer, aead)
+	}()
+
+	// ۸. انتظار برای پایان
+	select {
+	case err := <-errs:
+		if err != nil && err != io.EOF {
+			return err
+		}
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 
 	return nil
 }
 
-// encryptWrite reads raw data and writes encrypted frames
 func (h *Handler) encryptWrite(reader buf.Reader, writer io.Writer, aead cipher.AEAD) error {
 	nonce := make([]byte, aead.NonceSize())
-	// Use static salt/counter for nonce in this step
-
 	for {
 		b, err := reader.ReadMultiBuffer()
 		if err != nil {
@@ -87,7 +85,6 @@ func (h *Handler) encryptWrite(reader buf.Reader, writer io.Writer, aead cipher.
 			}
 
 			rawPayload := buffer.Bytes()
-			// Frame: [2B Length][Encrypted Payload + 16B Tag]
 			encrypted := aead.Seal(nil, nonce, rawPayload, nil)
 
 			frameHeader := make([]byte, 2)
@@ -100,38 +97,32 @@ func (h *Handler) encryptWrite(reader buf.Reader, writer io.Writer, aead cipher.
 				return err
 			}
 
-			// Increment nonce to prevent reuse
 			increment(nonce)
 			buffer.Release()
 		}
 	}
 }
 
-// readDecrypt reads encrypted frames and writes raw data
 func (h *Handler) readDecrypt(reader io.Reader, writer buf.Writer, aead cipher.AEAD) error {
 	nonce := make([]byte, aead.NonceSize())
 	header := make([]byte, 2)
 
 	for {
-		// Read frame length
 		if _, err := io.ReadFull(reader, header); err != nil {
 			return err
 		}
 		length := binary.BigEndian.Uint16(header)
 
-		// Read encrypted payload + tag
 		payload := make([]byte, length)
 		if _, err := io.ReadFull(reader, payload); err != nil {
 			return err
 		}
 
-		// Decrypt
 		decrypted, err := aead.Open(nil, nonce, payload, nil)
 		if err != nil {
 			return err
 		}
 
-		// Write back to user
 		b := buf.New()
 		b.Write(decrypted)
 		if err := writer.WriteMultiBuffer(buf.MultiBuffer{b}); err != nil {
@@ -152,76 +143,103 @@ func (h *Handler) clientHandshake(conn net.Conn) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	uid := [16]byte(parsedUUID)
 
+	// ۱. آماده‌سازی پکت (۴ بایت مجیک + ۶۴ بایت دیتای هندشیک)
+	// کل حجم پکت ارسالی: ۶۸ بایت
 	fullPayload := make([]byte, 4+64)
 	binary.BigEndian.PutUint32(fullPayload[:4], reflex.ReflexMagic)
-	copy(fullPayload[4:36], pubKey[:])
-	uid := [16]byte(parsedUUID)
-	copy(fullPayload[36:52], uid[:])
-	binary.BigEndian.PutUint64(fullPayload[52:60], uint64(time.Now().Unix()))
-	if _, err := rand.Read(fullPayload[60:68]); err != nil {
+
+	// کپی کردن فیلدها با آفست‌های دقیق
+	copy(fullPayload[4:36], pubKey[:]) // ۳۲ بایت کلید عمومی
+	copy(fullPayload[36:52], uid[:])   // ۱۶ بایت UUID
+
+	timestamp := time.Now().Unix()
+	binary.BigEndian.PutUint64(fullPayload[52:60], uint64(timestamp)) // ۸ بایت زمان
+
+	// تولید نانس ۸ بایتی (حتماً ۸ بایت باشد)
+	nonce := make([]byte, 8)
+	if _, err := rand.Read(nonce); err != nil {
 		return nil, err
 	}
+	copy(fullPayload[60:68], nonce) // ۸ بایت نانس
 
+	// ۲. ارسال پکت به سرور
 	if _, err := conn.Write(fullPayload); err != nil {
 		return nil, err
 	}
 
+	// ۳. دریافت پاسخ سرور (۳۲ بایت کلید عمومی سرور)
 	respPubKey := make([]byte, 32)
 	if _, err := io.ReadFull(conn, respPubKey); err != nil {
 		return nil, err
 	}
-
 	var sPubKey [32]byte
 	copy(sPubKey[:], respPubKey)
 
+	// ۴. استخراج کلید مشترک و کلید نشست (Session Key)
 	shared := reflex.DeriveSharedKey(privKey, sPubKey)
-	salt := append(fullPayload[60:68], uid[:]...)
+
+	// محاسبه سالت: دقیقاً ۲۴ بایت (۸ بایت نانس + ۱۶ بایت یوزر آیدی)
+	salt := make([]byte, 0, 24)
+	salt = append(salt, nonce...)
+	salt = append(salt, uid[:]...)
+
 	sessionKey, err := reflex.DeriveSessionKey(shared, salt)
 	if err != nil {
 		return nil, err
 	}
 
+	// چاپ دیباگ برای مقایسه با سرور (این بخش را بعد از تست پاک کن)
+	fmt.Printf("DEBUG: SessionKey (first 4 bytes): %x\n", sessionKey[:4])
+	fmt.Printf("DEBUG: Salt used (%d bytes): %x\n", len(salt), salt)
+
+	// ۵. دریافت Policy Grant (بخش رمزنگاری شده)
+	// الف) خواندن ۲ بایت طول
 	policyLenBuf := make([]byte, 2)
 	if _, err := io.ReadFull(conn, policyLenBuf); err != nil {
 		return nil, fmt.Errorf("failed to read policy length: %w", err)
 	}
 	policyLen := binary.BigEndian.Uint16(policyLenBuf)
 
+	// ب) خواندن دیتای رمز شده
 	encryptedPolicy := make([]byte, policyLen)
 	if _, err := io.ReadFull(conn, encryptedPolicy); err != nil {
 		return nil, fmt.Errorf("failed to read encrypted policy: %w", err)
 	}
 
+	// ج) باز کردن رمز پالیسی با نانس صفر
 	policyAead, err := reflex.NewCipher(sessionKey)
 	if err != nil {
 		return nil, err
 	}
+	pNonce := make([]byte, policyAead.NonceSize()) // نانس تماماً صفر
 
-	nonce := make([]byte, policyAead.NonceSize())
-
-	decryptedPolicy, err := policyAead.Open(nil, nonce, encryptedPolicy, nil)
+	decryptedPolicy, err := policyAead.Open(nil, pNonce, encryptedPolicy, nil)
 	if err != nil {
-		return nil, errors.New("failed to decrypt policy grant")
+		return nil, errors.New("failed to decrypt policy grant (Key Mismatch)")
 	}
 
-	fmt.Printf("Policy Grant received: %d bytes\n", len(decryptedPolicy))
+	fmt.Printf("Policy Grant received and decrypted: %d bytes\n", len(decryptedPolicy))
 
 	return sessionKey, nil
 }
 
-func New(ctx context.Context, config *reflex.OutboundConfig) (proxy.Outbound, error) {
+func New(ctx context.Context, config *reflex.OutboundConfig) (*Handler, error) {
+	if config.Address == "" {
+		return nil, errors.New("address is required in reflex outbound config")
+	}
+	if config.Id == "" {
+		return nil, errors.New("id (uuid) is required in reflex outbound config")
+	}
+
 	return &Handler{
-		serverAddress: net.Destination{
-			Network: net.Network_TCP,
-			Address: net.ParseAddress(config.Address),
-			Port:    net.Port(config.Port),
-		},
-		clientId: config.Id,
+		serverAddress: config.Address,
+		serverPort:    net.Port(config.Port),
+		clientId:      config.Id,
 	}, nil
 }
 
-// increment is a helper to increase the nonce counter to prevent reuse
 func increment(b []byte) {
 	for i := range b {
 		b[i]++
