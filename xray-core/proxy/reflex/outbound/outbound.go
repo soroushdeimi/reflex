@@ -25,6 +25,7 @@ import (
 	"github.com/xtls/xray-core/transport/internet"
 )
 
+<<<<<<< HEAD
 // Handler is an outbound handler for Reflex protocol.
 type Handler struct {
 	address         string

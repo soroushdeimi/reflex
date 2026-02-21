@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 package inbound
 
 import (
@@ -114,6 +115,7 @@ func init() {
 	}))
 }
 
+<<<<<<< HEAD
 // New creates a new Reflex inbound handler from the generated InboundConfig.
 func New(ctx context.Context, config *reflex.InboundConfig) (*Handler, error) {
 	_ = ctx
