@@ -4,30 +4,30 @@
 package reflex
 
 // User represents a client (step1 spec).
-type User struct {
-	Id     string // UUID
-	Policy string
-}
+// type User struct {
+// 	Id     string // UUID
+// 	Policy string
+// }
 
-// Account for protocol.Account (step1).
-type Account struct {
-	Id string
-}
+// // Account for protocol.Account (step1).
+// type Account struct {
+// 	Id string
+// }
 
-// Fallback config (step1).
-type Fallback struct {
-	Dest uint32
-}
+// // Fallback config (step1).
+// type Fallback struct {
+// 	Dest uint32
+// }
 
-// InboundConfig is the inbound config (step1).
-type InboundConfig struct {
-	Clients  []*User
-	Fallback *Fallback
-}
+// // InboundConfig is the inbound config (step1).
+// type InboundConfig struct {
+// 	Clients  []*User
+// 	Fallback *Fallback
+// }
 
-// OutboundConfig (step1).
-type OutboundConfig struct {
-	Address string
-	Port    uint32
-	Id      string
-}
+// // OutboundConfig (step1).
+// type OutboundConfig struct {
+// 	Address string
+// 	Port    uint32
+// 	Id      string
+// }

@@ -1,0 +1,48 @@
+{
+  "log": {
+    "loglevel": "info"
+  },
+  "inbounds": [
+    {
+      "port": 1080,
+      "protocol": "reflex",
+      "settings": {
+        "clients": [
+          {
+            "id": "00000000-0000-0000-0000-000000000000",
+            "policy": "youtube"
+          }
+        ],
+        "fallback": {
+          "dest": 80
+        }
+      },
+      "streamSettings": {
+        "network": "tcp"
+      }
+    }
+  ],
+  "outbounds": [
+    {
+      "protocol": "reflex",
+      "settings": {
+        "address": "127.0.0.1",
+        "port": 1080,
+        "id": "00000000-0000-0000-0000-000000000000"
+      }
+    },
+    {
+      "protocol": "freedom",
+      "tag": "direct"
+    }
+  ],
+  "routing": {
+    "rules": [
+      {
+        "type": "field",
+        "outboundTag": "direct",
+        "domain": ["geosite:cn"]
+      }
+    ]
+  }
+}
