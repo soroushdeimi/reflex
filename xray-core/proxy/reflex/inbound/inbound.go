@@ -53,29 +53,34 @@ func (h *Handler) Network() []net.Network {
     return []net.Network{net.Network_TCP}
 }
 
+const (
+    ReflexMinHandshakeSize = 64
+)
+
 func (h *Handler) Process(ctx context.Context, network net.Network, conn stat.Connection, dispatcher routing.Dispatcher) error {
     // Wrap connection در bufio.Reader برای peek
     reader := bufio.NewReader(conn)
     
     // Peek کردن چند بایت اول
-    peeked, err := reader.Peek(64) // حداقل برای magic number یا HTTP header
+    peeked, err := reader.Peek(ReflexMinHandshakeSize) // حداقل برای magic number یا HTTP header
     if err != nil {
         return err
     }
-    
-    // چک کردن magic number (سریع‌تر)
-    if len(peeked) >= 4 {
-        magic := binary.BigEndian.Uint32(peeked[0:4])
-        if magic == ReflexMagic {
-            // Magic number پیدا شد - parse کن
-            return h.handleReflexMagic(reader, conn, dispatcher, ctx)
-        }
-    }
-    
-    // // هیچکدوم نبود - به fallback بفرست
-    // return h.handleFallback(ctx, reader, conn)
 
-	return nil // Todo: complete after implementing fallback
+    if h.isReflexMagic(peeked) {
+        if len(peeked) >= 4 {
+            magic := binary.BigEndian.Uint32(peeked[0:4])
+            if magic == ReflexMagic {
+                return h.handleReflexMagic(reader, conn, dispatcher, ctx)
+            }
+        }
+
+        // Go to fallback if not magic
+        return h.handleFallback(ctx, reader, conn)
+    } else {
+        // Go to fallback if not reflex
+        return h.handleFallback(ctx, reader, conn)
+    }
 }
 
 func (h *Handler) handleReflexMagic(reader *bufio.Reader, conn stat.Connection, dispatcher routing.Dispatcher, ctx context.Context) error {
@@ -128,10 +133,8 @@ func (h *Handler) processHandshake(reader *bufio.Reader, conn stat.Connection, d
     // احراز هویت
     user, err := h.authenticateUser(clientHS.UserID)
     if err != nil {
-        // اگر احراز هویت ناموفق بود، به fallback برو
-        // return h.handleFallback(ctx, reader, conn)
-
-		return nil // Todo: complete after implementing fallback
+        // Go to fallback if not authorized
+        return h.handleFallback(ctx, reader, conn)
     }
     
     // ارسال پاسخ handshake (شبیه HTTP 200)

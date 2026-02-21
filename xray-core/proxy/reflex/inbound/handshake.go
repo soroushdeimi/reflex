@@ -3,6 +3,7 @@ package inbound
 import (
 	"crypto/rand"
 	"crypto/sha256"
+	"encoding/binary"
 	"errors"
 	"io"
 
@@ -27,12 +28,22 @@ type ClientHandshakePacket struct {
 	Handshake ClientHandshake
 }
 
-// یا می‌تونی از magic number استفاده کنی (ساده‌تر برای تشخیص)
-const ReflexMagic = 0x5246584C // "REFX" در ASCII
 
 type ServerHandshake struct {
 	PublicKey   [32]byte // کلید عمومی سرور
 	PolicyGrant []byte   // اعطای سیاست (رمزنگاری شده)
+}
+
+// یا می‌تونی از magic number استفاده کنی (ساده‌تر برای تشخیص)
+const ReflexMagic = 0x5246584C // "REFX" در ASCII
+
+func (h *Handler) isReflexMagic(data []byte) bool {
+    if len(data) < 4 {
+        return false
+    }
+    
+    magic := binary.BigEndian.Uint32(data[0:4])
+    return magic == ReflexMagic
 }
 
 func generateKeyPair() (privateKey [32]byte, publicKey [32]byte, err error) {
