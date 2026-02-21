@@ -289,7 +289,6 @@ func (h *Handler) handleSession(ctx context.Context, reader *bufio.Reader, conn 
 
 // این دو تابع دقیقاً مشابه کدهای تو هستند، با کمی تغییر برای Inbound
 func (h *Handler) encryptWrite(reader buf.Reader, writer io.Writer, aead cipher.AEAD, nonce []byte) error {
-	nonce := make([]byte, aead.NonceSize())
 	for {
 		multiBuffer, err := reader.ReadMultiBuffer()
 		if err != nil {
@@ -308,7 +307,6 @@ func (h *Handler) encryptWrite(reader buf.Reader, writer io.Writer, aead cipher.
 }
 
 func (h *Handler) readDecrypt(reader io.Reader, writer buf.Writer, aead cipher.AEAD, nonce []byte) error {
-	nonce := make([]byte, aead.NonceSize())
 	header := make([]byte, 2)
 	for {
 		if _, err := io.ReadFull(reader, header); err != nil {

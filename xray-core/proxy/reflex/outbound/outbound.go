@@ -12,9 +12,9 @@ import (
 
 	"github.com/xtls/xray-core/common"
 	"github.com/xtls/xray-core/common/buf"
-	"github.com/xtls/xray-core/common/net"
+	"github.com/xtls/xray-core/common/net" // این باید حتماً پکیج Xray باشد
+	"github.com/xtls/xray-core/common/session"
 	"github.com/xtls/xray-core/common/uuid"
-	"github.com/xtls/xray-core/proxy"
 	"github.com/xtls/xray-core/proxy/reflex"
 	"github.com/xtls/xray-core/transport"
 	"github.com/xtls/xray-core/transport/internet"
@@ -47,15 +47,14 @@ func (h *Handler) Process(ctx context.Context, link *transport.Link, dialer inte
 		return fmt.Errorf("failed to create cipher: %w", err)
 	}
 
-	// ۴. ارسال آدرس مقصد (Target Address) به سرور
-	// استخراج مقصد از درخواست (مثلاً www.google.com:80)
-	target, ok := proxy.TargetFromContext(ctx)
-	if !ok {
-		return errors.New("failed to get target destination from context")
+	// به جای proxy.TargetFromContext(ctx):
+	outbounds := session.OutboundsFromContext(ctx)
+	if len(outbounds) == 0 || !outbounds[0].Target.IsValid() {
+		return errors.New("failed to determine target destination")
 	}
+	targetAddrRaw := outbounds[0].Target.NetAddr()
 
 	// رمزنگاری آدرس مقصد با نانس صفر
-	targetAddrRaw := target.String()
 	nonce := make([]byte, aead.NonceSize()) // نانس شروع (۰)
 
 	encryptedAddr := aead.Seal(nil, nonce, []byte(targetAddrRaw), nil)
@@ -105,7 +104,6 @@ func (h *Handler) Process(ctx context.Context, link *transport.Link, dialer inte
 }
 
 func (h *Handler) encryptWrite(reader buf.Reader, writer io.Writer, aead cipher.AEAD, nonce []byte) error {
-	nonce := make([]byte, aead.NonceSize())
 	for {
 		b, err := reader.ReadMultiBuffer()
 		if err != nil {
@@ -130,14 +128,22 @@ func (h *Handler) encryptWrite(reader buf.Reader, writer io.Writer, aead cipher.
 				return err
 			}
 
-			increment(nonce)
+			h.increment(nonce)
 			buffer.Release()
 		}
 	}
 }
 
+func (h *Handler) increment(b []byte) {
+	for i := range b {
+		b[i]++
+		if b[i] != 0 {
+			return
+		}
+	}
+}
+
 func (h *Handler) readDecrypt(reader io.Reader, writer buf.Writer, aead cipher.AEAD, nonce []byte) error {
-	nonce := make([]byte, aead.NonceSize())
 	header := make([]byte, 2)
 
 	for {
@@ -162,7 +168,7 @@ func (h *Handler) readDecrypt(reader io.Reader, writer buf.Writer, aead cipher.A
 			return err
 		}
 
-		increment(nonce)
+		h.increment(nonce)
 	}
 }
 
@@ -273,15 +279,6 @@ func New(ctx context.Context, config *reflex.OutboundConfig) (*Handler, error) {
 	}, nil
 }
 
-func increment(b []byte) {
-	for i := range b {
-		b[i]++
-		if b[i] != 0 {
-			return
-		}
-	}
-}
-
 func init() {
 	common.Must(common.RegisterConfig(
 		(*reflex.OutboundConfig)(nil),
@@ -289,13 +286,4 @@ func init() {
 			return New(ctx, config.(*reflex.OutboundConfig))
 		},
 	))
-}
-
-func (h *Handler) increment(b []byte) {
-	for i := range b {
-		b[i]++
-		if b[i] != 0 {
-			return
-		}
-	}
 }
