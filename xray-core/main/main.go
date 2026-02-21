@@ -6,6 +6,10 @@ import (
 
 	"github.com/xtls/xray-core/main/commands/base"
 	_ "github.com/xtls/xray-core/main/distro/all"
+
+_ "github.com/xtls/xray-core/proxy/reflex/inbound"
+_ "github.com/xtls/xray-core/proxy/reflex/outbound"
+
 )
 
 func main() {
@@ -52,6 +56,8 @@ func getArgsV4Compatible() []string {
 	// fmt.Println("PLEASE USE: xray run [arguments] INSTEAD.")
 	// fmt.Println()
 	return append([]string{os.Args[0], "run"}, os.Args[1:]...)
+
+
 }
 
 type null struct{}

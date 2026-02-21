@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package reflex.proxy;
+option go_package = "github.com/xtls/xray-core/proxy/reflex";
+
+message User {
+  string id = 1;
+  string policy = 2;
+}
+
+message Account {
+  string id = 1;
+}
+
+message InboundConfig {
+  repeated User clients = 1;
+  Fallback fallback = 2;
+}
+
+message Fallback {
+  uint32 dest = 1;
+}
+
+message OutboundConfig {
+  string address = 1;
+  uint32 port = 2;
+  string id = 3;
+}
