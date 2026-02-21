@@ -19,6 +19,12 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+const (
+	// حداقل اندازه برای تشخیص handshake
+	// Magic number (4) + حداقل اندازه handshake
+	ReflexMinHandshakeSize = 64
+)
+
 type Handler struct {
 	clients  []*protocol.MemoryUser
 	fallback *FallbackConfig
@@ -55,31 +61,61 @@ func (h *Handler) Network() []net.Network {
 }
 
 func (h *Handler) Process(ctx context.Context, network net.Network, conn stat.Connection, dispatcher routing.Dispatcher) error {
-	// Wrap connection در bufio.Reader برای peek
+	// Wrap connection در bufio.Reader
 	reader := bufio.NewReader(conn)
 
-	// Peek کردن چند بایت اول
-	peeked, err := reader.Peek(64) // حداقل برای magic number یا HTTP header
+	// Peek کردن چند بایت اول (بدون مصرف)
+	peeked, err := reader.Peek(ReflexMinHandshakeSize)
 	if err != nil {
 		return err
 	}
 
-	// چک کردن magic number (سریع‌تر)
-	if len(peeked) >= 4 {
-		magic := binary.BigEndian.Uint32(peeked[0:4])
-		if magic == reflex.ReflexMagic {
-			// Magic number پیدا شد - parse کن
+	// چک کردن که آیا Reflex هست یا نه
+	if h.isReflexHandshake(peeked) {
+		// Reflex هست - پردازش کن
+		// باید منطق handshake رو از step2 صدا بزنی:
+		if h.isReflexMagic(peeked) {
 			return h.handleReflexMagic(reader, conn, dispatcher, ctx)
 		}
+		if h.isHTTPPostLike(peeked) {
+			return h.handleReflexHTTP(reader, conn, dispatcher, ctx)
+		}
+		// اگه هیچکدوم نبود، به fallback برو
+		return h.handleFallback(ctx, reader, conn)
+	} else {
+		// Reflex نیست - به fallback بفرست
+		return h.handleFallback(ctx, reader, conn)
+	}
+}
+func (h *Handler) isReflexMagic(data []byte) bool {
+	if len(data) < 4 {
+		return false
 	}
 
-	// چک کردن HTTP POST-like
-	if h.isHTTPPostLike(peeked) {
-		return h.handleReflexHTTP(reader, conn, dispatcher, ctx)
-	} //TODO Step 4
+	magic := binary.BigEndian.Uint32(data[0:4])
+	return magic == reflex.ReflexMagic
+}
+func (h *Handler) isHTTPPostLike(peeked []byte) bool {
+	// چک کردن حداقل طول
+	if len(peeked) < 5 {
+		return false
+	}
+	// چک کردن متدها (فعلا فقط POST برای مرحله ۴)
+	return string(peeked[:5]) == "POST " || string(peeked[:4]) == "GET " || string(peeked[:4]) == "PUT "
+}
 
-	// هیچکدوم نبود - به fallback بفرست
-	return h.handleFallback(ctx, reader, conn)
+func (h *Handler) isReflexHandshake(data []byte) bool {
+	// اول magic number رو چک کن (سریع‌تر)
+	if h.isReflexMagic(data) {
+		return true
+	}
+
+	// بعد HTTP POST-like رو چک کن (پنهان‌کارتر)
+	if h.isHTTPPostLike(data) {
+		return true
+	}
+
+	return false
 }
 
 func (h *Handler) handleReflexMagic(reader *bufio.Reader, conn stat.Connection, dispatcher routing.Dispatcher, ctx context.Context) error {
@@ -190,7 +226,59 @@ func (h *Handler) handleSession(ctx context.Context, reader *bufio.Reader, conn 
 }
 
 func (h *Handler) handleFallback(ctx context.Context, reader *bufio.Reader, conn stat.Connection) error {
+	// اگر فال‌بک کانفیگ نشده بود، اتصال را ببند
+	if h.fallback == nil || h.fallback.Dest == 0 {
+		return errors.New("no fallback configured")
+	}
+
+	// ساخت Wrapper برای اینکه بایت‌های Peek شده از بین نروند
+	wrappedConn := &preloadedConn{
+		Reader:     reader,
+		Connection: conn,
+	}
+
+	// اتصال به وب‌سرور محلی (مثلا Nginx روی پورت 80 یا 443)
+	targetAddr := fmt.Sprintf("127.0.0.1:%d", h.fallback.Dest)
+	target, err := net.Dial("tcp", targetAddr)
+	if err != nil {
+		return fmt.Errorf("failed to dial fallback server: %w", err)
+	}
+	defer target.Close()
+
+	// کپی کردن دوطرفه داده‌ها بین کلاینت و وب‌سرور
+	errs := make(chan error, 2)
+	go func() {
+		_, err := io.Copy(target, wrappedConn)
+		errs <- err
+	}()
+	go func() {
+		_, err := io.Copy(wrappedConn, target)
+		errs <- err
+	}()
+
+	<-errs // منتظر ماندن تا یکی از اتصالات بسته شود
 	return nil
+}
+
+// preloadedConn باعث می‌شود بایت‌هایی که bufio.Reader خوانده (Peek کرده)
+// قبل از بایت‌های اصلی کانکشن به وب‌سرور فرستاده شوند.
+type preloadedConn struct {
+	*bufio.Reader
+	stat.Connection
+}
+
+// Read را اورراید می‌کنیم تا از Reader بخواند
+func (pc *preloadedConn) Read(b []byte) (int, error) {
+	return pc.Reader.Read(b)
+}
+
+// Write را دست نمی‌زنیم تا مستقیم روی Connection بنویسد
+func (pc *preloadedConn) Write(b []byte) (int, error) {
+	return pc.Connection.Write(b)
+}
+
+func (pc *preloadedConn) Close() error {
+	return pc.Connection.Close()
 }
 
 func (h *Handler) authenticateUser(id [16]byte) (*protocol.MemoryUser, error) {
@@ -205,15 +293,6 @@ func (h *Handler) authenticateUser(id [16]byte) (*protocol.MemoryUser, error) {
 
 func (h *Handler) formatHTTPResponse(hs reflex.ServerHandshake) []byte {
 	return []byte("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n{\"status\":\"ok\"}")
-}
-
-func (h *Handler) isHTTPPostLike(peeked []byte) bool {
-	// چک کردن حداقل طول
-	if len(peeked) < 5 {
-		return false
-	}
-	// چک کردن متدها (فعلا فقط POST برای مرحله ۴)
-	return string(peeked[:5]) == "POST " || string(peeked[:4]) == "GET " || string(peeked[:4]) == "PUT "
 }
 
 func init() {
