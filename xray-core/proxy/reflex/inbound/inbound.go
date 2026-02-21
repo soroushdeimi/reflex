@@ -26,9 +26,10 @@ import (
 // Handler implements proxy.Inbound interface for Reflex protocol.
 // It handles incoming connections and processes Reflex protocol messages.
 type Handler struct {
-	clients  []*protocol.MemoryUser
-	fallback *FallbackConfig
-	userUUIDs []string // Cached UUID list for quick lookup
+	clients   []*protocol.MemoryUser
+	fallback  *FallbackConfig
+	userUUIDs []string            // Cached UUID list for quick lookup
+	userPolicies map[string]string // Map UUID to policy (traffic profile name)
 }
 
 // MemoryAccount implements protocol.Account interface for Reflex users.
@@ -179,12 +180,6 @@ func (h *Handler) handleHandshake(ctx context.Context, reader *bufio.Reader, con
 		Content:  "Reflex: Handshake completed successfully",
 	})
 
-	// Create encryption session
-	session, err := reflex.NewSession(sessionKey)
-	if err != nil {
-		return errors.New("failed to create session").Base(err)
-	}
-
 	// Find user object
 	var user *protocol.MemoryUser
 	for _, u := range h.clients {
@@ -192,6 +187,32 @@ func (h *Handler) handleHandshake(ctx context.Context, reader *bufio.Reader, con
 			user = u
 			break
 		}
+	}
+
+	// Get traffic profile from user policy (if specified)
+	var profile *reflex.TrafficProfile
+	if user != nil {
+		// Get policy from user UUID
+		if policyName, ok := h.userPolicies[userUUID]; ok && policyName != "" {
+			profile = reflex.GetProfile(policyName)
+			if profile == nil {
+				log.Record(&log.GeneralMessage{
+					Severity: log.Severity_Warning,
+					Content:  "Reflex: Unknown traffic profile: " + policyName,
+				})
+			}
+		}
+	}
+
+	// Create encryption session with profile
+	var session *reflex.Session
+	if profile != nil {
+		session, err = reflex.NewSessionWithProfile(sessionKey, reflex.DefaultMorphingConfig(), profile)
+	} else {
+		session, err = reflex.NewSession(sessionKey)
+	}
+	if err != nil {
+		return errors.New("failed to create session").Base(err)
 	}
 
 	// Process encrypted frames
@@ -222,11 +243,17 @@ func (h *Handler) handleSession(ctx context.Context, reader *bufio.Reader, conn 
 			}
 
 		case reflex.FrameTypePadding:
-			// Padding control - ignore for now
+			// Padding control - handle control frame
+			if err := session.HandleControlFrame(frame); err != nil {
+				return errors.New("failed to handle padding control").Base(err)
+			}
 			continue
 
 		case reflex.FrameTypeTiming:
-			// Timing control - ignore for now
+			// Timing control - handle control frame
+			if err := session.HandleControlFrame(frame); err != nil {
+				return errors.New("failed to handle timing control").Base(err)
+			}
 			continue
 
 		case reflex.FrameTypeClose:
@@ -375,8 +402,9 @@ func init() {
 // It parses the config, creates user accounts, and sets up fallback if configured.
 func New(ctx context.Context, config *reflex.InboundConfig) (proxy.Inbound, error) {
 	handler := &Handler{
-		clients:   make([]*protocol.MemoryUser, 0),
-		userUUIDs: make([]string, 0),
+		clients:      make([]*protocol.MemoryUser, 0),
+		userUUIDs:    make([]string, 0),
+		userPolicies: make(map[string]string),
 	}
 
 	// Convert config clients to MemoryUser objects
@@ -386,6 +414,10 @@ func New(ctx context.Context, config *reflex.InboundConfig) (proxy.Inbound, erro
 			Account: &MemoryAccount{Id: client.Id},
 		})
 		handler.userUUIDs = append(handler.userUUIDs, client.Id)
+		// Store policy if specified
+		if client.Policy != "" {
+			handler.userPolicies[client.Id] = client.Policy
+		}
 	}
 
 	// Setup fallback if configured

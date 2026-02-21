@@ -24,15 +24,29 @@
 
 #### Step 3 - Encryption & Frame Processing
 - ✅ ساختار Frame با header (length + type)
-- ✅ رمزنگاری AES-256-GCM برای payload
+- ✅ رمزنگاری **ChaCha20-Poly1305** برای payload (مطابق مستندات)
 - ✅ خواندن/نوشتن frame با nonce management
 - ✅ پشتیبانی از انواع frame (Data, Padding, Timing, Close)
 
-#### Step 4 - Traffic Morphing & Fallback Prep
-- ✅ پیاده‌سازی Traffic Morphing (padding/randomization)
+#### Step 4 - Traffic Morphing & Fallback
+- ✅ پیاده‌سازی Traffic Morphing پایه (padding/randomization)
 - ✅ Validation اندازه بسته‌ها
-- ✅ Hooks برای fallback server (آماده برای پیاده‌سازی کامل)
+- ✅ **پیاده‌سازی کامل Fallback** به وب‌سرور
 - ✅ تشخیص پروتکل با magic number
+- ✅ Multiplexing روی یک پورت (Reflex + HTTP)
+
+#### Step 5 - Advanced Traffic Morphing
+- ✅ **پیاده‌سازی Traffic Morphing پیشرفته** با توزیع آماری:
+  - ساختار `TrafficProfile` با توزیع اندازه بسته‌ها و timing
+  - توزیع احتمال برای اندازه بسته‌ها (`PacketSizeDist`)
+  - توزیع احتمال برای تأخیرها (`DelayDist`)
+- ✅ **پشتیبانی از Frame‌های PADDING_CTRL و TIMING_CTRL**:
+  - Handle کردن control frames در session
+  - ارسال control frames (`SendPaddingControl`, `SendTimingControl`)
+  - Override mechanism برای packet size و delay
+- ✅ **استخراج پروفایل از ترافیک**:
+  - `CreateProfileFromCapture()` برای ساخت پروفایل از ترافیک واقعی
+  - پروفایل‌های آماده: YouTube, Zoom, HTTP/2 API
 
 ### ساختار پروژه
 
@@ -47,9 +61,10 @@ reflex/
 │   │       │   └── outbound.go
 │   │       ├── handshake.go      # Handshake logic
 │   │       ├── auth.go           # Authentication
-│   │       ├── session.go        # Encryption session
+│   │       ├── session.go        # Encryption session (ChaCha20-Poly1305)
 │   │       ├── frame.go          # Frame structure
-│   │       ├── morphing.go       # Traffic morphing
+│   │       ├── morphing.go       # Traffic morphing پایه
+│   │       ├── traffic_profile.go # Advanced traffic morphing (Step 5)
 │   │       ├── fallback.go       # Fallback detection
 │   │       └── config.proto      # Protobuf config
 │   ├── infra/conf/
@@ -61,7 +76,10 @@ reflex/
 │           ├── auth_test.go
 │           ├── morphing_test.go
 │           ├── integration_test.go
-│           └── inbound_test.go
+│           ├── inbound_test.go
+│           ├── fallback_test.go
+│           ├── traffic_profile_test.go  # Step 5
+│           └── session_morphing_test.go # Step 5
 ├── config.example.json           # مثال پیکربندی
 ├── README.md                     # این فایل
 └── SUBMISSION.md                 # توضیح کارها
@@ -92,9 +110,13 @@ go build -o xray ./main
       "settings": {
         "clients": [
           {
-            "id": "00000000-0000-0000-0000-000000000000"
+            "id": "00000000-0000-0000-0000-000000000000",
+            "policy": "youtube"  // Optional: traffic profile (youtube, zoom, http2-api)
           }
-        ]
+        ],
+        "fallback": {
+          "dest": 80  // Optional: fallback port
+        }
       }
     }
   ],
@@ -153,21 +175,24 @@ go build -o xray ./main
 
 ```bash
 cd xray-core
-go test ./tests/reflex/... -v
+export PATH=$PATH:/usr/local/go/bin  # اگر go در PATH نیست
+go test github.com/xtls/xray-core/tests/reflex -v
 ```
 
 ### اجرای با coverage
 
 ```bash
-go test ./tests/reflex/... -cover
-go test ./tests/reflex/... -coverprofile=coverage.out
+export PATH=$PATH:/usr/local/go/bin
+go test github.com/xtls/xray-core/tests/reflex -cover
+go test github.com/xtls/xray-core/tests/reflex -coverprofile=coverage.out
 go tool cover -html=coverage.out
 ```
 
 ### اجرای با race detection
 
 ```bash
-go test ./tests/reflex/... -race
+export PATH=$PATH:/usr/local/go/bin
+go test github.com/xtls/xray-core/tests/reflex -race
 ```
 
 ### تست‌های موجود
@@ -178,8 +203,11 @@ go test ./tests/reflex/... -race
 - **morphing_test.go**: تست‌های traffic morphing (7 تست)
 - **integration_test.go**: تست‌های end-to-end (3 تست)
 - **inbound_test.go**: تست‌های inbound handler (5 تست)
+- **fallback_test.go**: تست‌های fallback (2 تست)
+- **traffic_profile_test.go**: تست‌های TrafficProfile (6 تست) - Step 5
+- **session_morphing_test.go**: تست‌های advanced morphing (8 تست) - Step 5
 
-**مجموع: 44 تست**
+**مجموع: 54 تست**
 
 ## مشکلات و راه‌حل‌ها
 
@@ -209,6 +237,26 @@ return handler.(*Handler), nil
 xnet "github.com/xtls/xray-core/common/net"
 ```
 
+### مشکل 5: Encryption Algorithm Discrepancy
+**مشکل**: مستندات ChaCha20-Poly1305 را می‌خواست اما کد اولیه از AES-256-GCM استفاده می‌کرد.
+
+**راه‌حل**: تغییر encryption algorithm به ChaCha20-Poly1305 برای مطابقت با مستندات.
+
+### مشکل 6: Fallback Implementation ناقص
+**مشکل**: Fallback فقط hooks داشت و پیاده‌سازی کامل نبود.
+
+**راه‌حل**: پیاده‌سازی کامل `handleFallback()` با forward کردن connection به وب‌سرور و context cancellation.
+
+### مشکل 7: Fallback Test Hanging
+**مشکل**: تست fallback hang می‌کرد چون `io.Copy` منتظر EOF می‌ماند.
+
+**راه‌حل**: اضافه کردن context timeout و استفاده از `DialContext` به جای `Dial`.
+
+### مشکل 8: TestWriteFrameWithMorphingLargeData Data Integrity
+**مشکل**: تست `TestWriteFrameWithMorphingLargeData` fail می‌شد چون وقتی داده بزرگ split می‌شد، هر chunk padding می‌گرفت.
+
+**راه‌حل**: ایجاد `writeFrameChunkWithoutPadding()` برای chunk‌های split شده تا فقط chunk‌های کوچکتر از targetSize را pad کنیم.
+
 ## نکات فنی
 
 ### Handshake Flow
@@ -222,14 +270,21 @@ xnet "github.com/xtls/xray-core/common/net"
 8. Both sides derive shared key and session key
 
 ### Encryption
-- استفاده از AES-256-GCM برای encryption
+- استفاده از **ChaCha20-Poly1305** برای encryption (مطابق مستندات)
 - Nonce management با counter (separate برای read/write)
 - Frame format: `[Length:2][Type:1][EncryptedPayload]`
 
-### Traffic Morphing
+### Traffic Morphing پایه
 - Padding بسته‌های کوچک به MinSize (default: 64 bytes)
 - Randomization اندازه بسته‌ها بین MinSize و MaxSize
 - Validation اندازه بسته‌ها برای drop کردن suspicious packets
+
+### Advanced Traffic Morphing (Step 5)
+- توزیع آماری اندازه بسته‌ها بر اساس پروفایل (YouTube, Zoom, HTTP/2 API)
+- توزیع آماری timing برای تقلید از ترافیک واقعی
+- پشتیبانی از PADDING_CTRL و TIMING_CTRL frames برای کنترل dynamic
+- استخراج پروفایل از ترافیک واقعی با `CreateProfileFromCapture()`
+- Split کردن داده‌های بزرگ به چند chunk با morphing
 
 ## مراجع
 
