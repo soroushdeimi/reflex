@@ -1,0 +1,38 @@
+syntax = "proto3";
+
+package reflex.proxy;
+option go_package = "github.com/xtls/xray-core/proxy/reflex";
+
+message User {
+  string id = 1;  // UUID کاربر
+  string policy = 2;  // سیاست ترافیک (مثلاً "youtube")
+}
+
+message Account {
+  string id = 1;  // UUID کاربر
+}
+
+message InboundConfig {
+  repeated User clients = 1;
+  Fallback fallback = 2;
+  TLSSettings tls = 3;
+}
+
+message Fallback {
+  uint32 dest = 1;  // پورت مقصد fallback (مثلاً 80)
+}
+
+message TLSSettings {
+  bool enabled = 1;
+  string server_name = 2;
+  bytes ech_key = 3; // ECH KeySetList (binary)
+  string cert_file = 4; // مسیر فایل گواهی
+  string key_file = 5;  // مسیر فایل کلید خصوصی
+}
+
+message OutboundConfig {
+  string address = 1;
+  uint32 port = 2;
+  string id = 3;  // UUID کلاینت
+  TLSSettings tls = 4;
+}

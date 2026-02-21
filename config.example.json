@@ -1,0 +1,49 @@
+{
+  "log": {
+    "loglevel": "info"
+  },
+  "inbounds": [
+    {
+      "port": 443,
+      "protocol": "reflex",
+      "settings": {
+        "clients": [
+          {
+            "id": "ad600f1c-7798-43e8-8319-33b1e3e7843d",
+            "policy": "youtube"
+          }
+        ],
+        "fallback": {
+          "dest": 80
+        },
+        "tls": {
+          "enabled": true,
+          "server_name": "yourdomain.com",
+          "cert_file": "/etc/letsencrypt/live/yourdomain.com/fullchain.pem",
+          "key_file": "/etc/letsencrypt/live/yourdomain.com/privkey.pem",
+          "ech_key": "BASE64_ENCODED_ECH_PRIVATE_KEY_SET"
+        }
+      }
+    }
+  ],
+  "outbounds": [
+    {
+      "protocol": "reflex",
+      "settings": {
+        "address": "YOUR_SERVER_IP",
+        "port": 443,
+        "id": "ad600f1c-7798-43e8-8319-33b1e3e7843d",
+        "tls": {
+          "enabled": true,
+          "server_name": "yourdomain.com",
+          "ech_key": "BASE64_ENCODED_ECH_CONFIG_LIST"
+        }
+      },
+      "tag": "proxy"
+    },
+    {
+      "protocol": "freedom",
+      "tag": "direct"
+    }
+  ]
+}
