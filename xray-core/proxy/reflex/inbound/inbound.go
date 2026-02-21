@@ -3,14 +3,18 @@ package inbound
 import (
 	"bufio"
 	"context"
+	"errors"
 
 	"github.com/xtls/xray-core/common"
-	"github.com/xtls/xray-core/common/net"
+	"github.com/xtls/xray-core/common/buf"
+	xnet "github.com/xtls/xray-core/common/net"
 	"github.com/xtls/xray-core/common/protocol"
 	"github.com/xtls/xray-core/features/routing"
 	"github.com/xtls/xray-core/proxy"
 	"github.com/xtls/xray-core/proxy/reflex"
-	"github.com/xtls/xray-core/proxy/reflex/crypto"
+	reflexcrypto "github.com/xtls/xray-core/proxy/reflex/crypto"
+	reflexproto "github.com/xtls/xray-core/proxy/reflex/protocol"
+	"github.com/xtls/xray-core/proxy/reflex/session"
 	"github.com/xtls/xray-core/transport/internet/stat"
 	"google.golang.org/protobuf/proto"
 )
@@ -33,45 +37,112 @@ func (a *MemoryAccount) Equals(account protocol.Account) bool {
 }
 
 func (a *MemoryAccount) ToProto() proto.Message {
-	return &reflex.Account{
-		Id: a.Id,
-	}
+	return &reflex.Account{Id: a.Id}
 }
 
 type FallbackConfig struct {
 	Dest uint32
 }
 
-func (h *Handler) Network() []net.Network {
-	return []net.Network{net.Network_TCP}
+func (h *Handler) Network() []xnet.Network {
+	return []xnet.Network{xnet.Network_TCP}
 }
 
 func (h *Handler) Process(
 	ctx context.Context,
-	network net.Network,
+	network xnet.Network,
 	conn stat.Connection,
 	dispatcher routing.Dispatcher,
 ) error {
 
-	// Wrap connection in bufio.Reader
 	reader := bufio.NewReader(conn)
 
-	session, err := crypto.ServerHandshake(reader, conn, h.clients)
+	sess, user, err := reflexcrypto.ServerHandshake(reader, conn, h.clients)
 	if err != nil {
-		// اگر handshake نبود یا fail شد، fallback
 		if h.fallback != nil {
 			return h.handleFallback(ctx, conn)
 		}
 		return err
 	}
 
-	// فعلاً Step 3 هنوز نیومده
-	_ = session
-
-	return nil
+	return h.handleSession(ctx, reader, conn, dispatcher, sess, user)
 }
 
-// Fallback ساده (می‌تونی بعداً تکمیلش کنی)
+func (h *Handler) handleSession(
+	ctx context.Context,
+	reader *bufio.Reader,
+	conn stat.Connection,
+	dispatcher routing.Dispatcher,
+	sess *session.Session,
+	user *protocol.MemoryUser,
+) error {
+
+	// First frame must contain destination
+	frame, err := sess.ReadFrame(reader)
+	if err != nil {
+		return err
+	}
+
+	if frame.Type != reflexproto.FrameTypeData {
+		return errors.New("first frame must be DATA")
+	}
+
+	dest, payload, err := reflexproto.ParseDestination(frame.Payload)
+	if err != nil {
+		return err
+	}
+
+	link, err := dispatcher.Dispatch(ctx, dest)
+	if err != nil {
+		return err
+	}
+
+	// Send initial payload upstream
+	if len(payload) > 0 {
+		buffer := buf.FromBytes(payload)
+		if err := link.Writer.WriteMultiBuffer(buf.MultiBuffer{buffer}); err != nil {
+			return err
+		}
+	}
+
+	// Upstream → Client
+	go func() {
+		for {
+			mb, err := link.Reader.ReadMultiBuffer()
+			if err != nil {
+				return
+			}
+			for _, b := range mb {
+				sess.WriteFrame(conn, reflexproto.FrameTypeData, b.Bytes())
+				b.Release()
+			}
+		}
+	}()
+
+	// Client → Upstream
+	for {
+		frame, err := sess.ReadFrame(reader)
+		if err != nil {
+			return err
+		}
+
+		switch frame.Type {
+
+		case reflexproto.FrameTypeData:
+			buffer := buf.FromBytes(frame.Payload)
+			if err := link.Writer.WriteMultiBuffer(buf.MultiBuffer{buffer}); err != nil {
+				return err
+			}
+
+		case reflexproto.FrameTypeClose:
+			return nil
+
+		default:
+			continue
+		}
+	}
+}
+
 func (h *Handler) handleFallback(ctx context.Context, conn stat.Connection) error {
 	conn.Close()
 	return nil
@@ -87,6 +158,7 @@ func init() {
 }
 
 func New(ctx context.Context, config *reflex.InboundConfig) (proxy.Inbound, error) {
+
 	handler := &Handler{
 		clients: make([]*protocol.MemoryUser, 0),
 	}

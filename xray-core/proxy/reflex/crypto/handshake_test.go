@@ -21,16 +21,14 @@ import (
 // ===================== Test Utilities =====================
 //
 
-// resetNonceCache clears the global replay cache before each test
-// to guarantee isolation between test cases.
+// resetNonceCache clears replay cache between tests.
 func resetNonceCache() {
 	nonceMutex.Lock()
 	defer nonceMutex.Unlock()
 	nonceCache = make(map[[16]byte]int64)
 }
 
-// drain prevents net.Pipe deadlock by continuously reading
-// any server response written during handshake.
+// drain prevents net.Pipe deadlock by consuming server writes.
 func drain(conn net.Conn) {
 	go func() {
 		io.Copy(io.Discard, conn)
@@ -38,10 +36,9 @@ func drain(conn net.Conn) {
 }
 
 //
-// ===================== Handshake Encoding Helpers =====================
+// ===================== Encoding Helpers =====================
 //
 
-// encodeHandshake serializes a ClientHandshake into raw binary format.
 func encodeHandshake(hs ClientHandshake) []byte {
 	buf := new(bytes.Buffer)
 
@@ -57,7 +54,6 @@ func encodeHandshake(hs ClientHandshake) []byte {
 	return buf.Bytes()
 }
 
-// createValidHandshake builds a complete HTTP POST-like handshake request.
 func createValidHandshake(userUUID string, timestamp int64, nonce [16]byte) []byte {
 
 	var priv [32]byte
@@ -96,7 +92,6 @@ func createValidHandshake(userUUID string, timestamp int64, nonce [16]byte) []by
 // ===================== Handshake Tests =====================
 //
 
-// TestHandshakeSuccess verifies a valid handshake establishes a session.
 func TestHandshakeSuccess(t *testing.T) {
 
 	resetNonceCache()
@@ -121,17 +116,20 @@ func TestHandshakeSuccess(t *testing.T) {
 	}()
 
 	reader := bufio.NewReader(serverConn)
-	session, err := ServerHandshake(reader, serverConn, clients)
+	sess, user, err := ServerHandshake(reader, serverConn, clients)
 	if err != nil {
 		t.Fatalf("handshake failed: %v", err)
 	}
 
-	if session == nil {
+	if sess == nil {
 		t.Fatal("session must not be nil")
+	}
+
+	if user == nil {
+		t.Fatal("user must not be nil")
 	}
 }
 
-// TestInvalidUUID ensures authentication fails for unknown users.
 func TestInvalidUUID(t *testing.T) {
 
 	resetNonceCache()
@@ -157,13 +155,12 @@ func TestInvalidUUID(t *testing.T) {
 	}()
 
 	reader := bufio.NewReader(serverConn)
-	_, err := ServerHandshake(reader, serverConn, clients)
+	_, _, err := ServerHandshake(reader, serverConn, clients)
 	if err == nil {
 		t.Fatal("expected authentication failure")
 	}
 }
 
-// TestOldTimestamp verifies stale handshakes are rejected.
 func TestOldTimestamp(t *testing.T) {
 
 	resetNonceCache()
@@ -190,18 +187,16 @@ func TestOldTimestamp(t *testing.T) {
 	}()
 
 	reader := bufio.NewReader(serverConn)
-	_, err := ServerHandshake(reader, serverConn, clients)
+	_, _, err := ServerHandshake(reader, serverConn, clients)
 	if err == nil {
 		t.Fatal("expected timestamp rejection")
 	}
 }
 
 //
-// ===================== Replay Protection Test =====================
+// ===================== Replay Test =====================
 //
 
-// nilConn is a lightweight net.Conn mock used for direct
-// processHandshake testing without full HTTP exchange.
 type nilConn struct{}
 
 func (n nilConn) Read(b []byte) (int, error)         { return 0, nil }
@@ -213,7 +208,6 @@ func (n nilConn) SetDeadline(t time.Time) error      { return nil }
 func (n nilConn) SetReadDeadline(t time.Time) error  { return nil }
 func (n nilConn) SetWriteDeadline(t time.Time) error { return nil }
 
-// TestReplay ensures nonce reuse is rejected.
 func TestReplay(t *testing.T) {
 
 	resetNonceCache()
@@ -244,13 +238,13 @@ func TestReplay(t *testing.T) {
 	}
 
 	// First handshake should succeed
-	_, err1 := processHandshake(nilConn{}, clients, hs)
+	_, _, err1 := processHandshake(nilConn{}, clients, hs)
 	if err1 != nil {
 		t.Fatal(err1)
 	}
 
-	// Second handshake with identical nonce must fail
-	_, err2 := processHandshake(nilConn{}, clients, hs)
+	// Second handshake must fail
+	_, _, err2 := processHandshake(nilConn{}, clients, hs)
 	if err2 == nil {
 		t.Fatal("expected replay rejection")
 	}

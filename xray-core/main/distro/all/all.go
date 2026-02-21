@@ -49,6 +49,10 @@ import (
 	_ "github.com/xtls/xray-core/proxy/vmess/outbound"
 	_ "github.com/xtls/xray-core/proxy/wireguard"
 
+	// importing reflex
+	_ "github.com/xtls/xray-core/proxy/reflex/inbound"
+	// _ "github.com/xtls/xray-core/proxy/reflex/outbound"
+
 	// Transports
 	_ "github.com/xtls/xray-core/transport/internet/grpc"
 	_ "github.com/xtls/xray-core/transport/internet/httpupgrade"

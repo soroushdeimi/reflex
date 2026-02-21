@@ -26,7 +26,8 @@ import (
 
 const ReflexMagic = 0x5246584C // "REFX"
 
-// ClientHandshake represents the raw handshake structure sent by the client.
+// ================= Structures =================
+
 type ClientHandshake struct {
 	PublicKey [32]byte
 	UserID    [16]byte
@@ -35,39 +36,37 @@ type ClientHandshake struct {
 	Nonce     [16]byte
 }
 
-// ServerHello represents the handshake response returned to the client.
 type ServerHello struct {
 	PublicKey   [32]byte `json:"public_key"`
 	PolicyGrant []byte   `json:"policy_grant"`
 }
 
-// Handshake-level replay cache.
+// ================= Replay Cache =================
+
 var (
 	nonceCache = make(map[[16]byte]int64)
 	nonceMutex sync.Mutex
 )
 
-// generateKeyPair creates an ephemeral X25519 key pair.
+// ================= Key Utilities =================
+
 func generateKeyPair() (privateKey [32]byte, publicKey [32]byte) {
 	rand.Read(privateKey[:])
 	curve25519.ScalarBaseMult(&publicKey, &privateKey)
 	return
 }
 
-// derivePreSharedKey derives a simple pre-shared key from the client UUID.
 func derivePreSharedKey(userID [16]byte) []byte {
 	h := sha256.Sum256(userID[:])
 	return h[:]
 }
 
-// deriveSharedKey computes the X25519 shared secret.
 func deriveSharedKey(privateKey, peerPublicKey [32]byte) [32]byte {
 	var shared [32]byte
 	curve25519.ScalarMult(&shared, &privateKey, &peerPublicKey)
 	return shared
 }
 
-// deriveSessionKey derives a 32-byte session key using HKDF-SHA256.
 func deriveSessionKey(sharedKey [32]byte) []byte {
 	h := hkdf.New(sha256.New, sharedKey[:], nil, []byte("reflex-session"))
 	key := make([]byte, 32)
@@ -75,7 +74,8 @@ func deriveSessionKey(sharedKey [32]byte) []byte {
 	return key
 }
 
-// authenticateUserBytes validates the UUID against configured users.
+// ================= Auth =================
+
 func authenticateUserBytes(userID [16]byte, clients []*protocol.MemoryUser) (*protocol.MemoryUser, error) {
 	uid := uuid.UUID(userID).String()
 	for _, user := range clients {
@@ -86,7 +86,6 @@ func authenticateUserBytes(userID [16]byte, clients []*protocol.MemoryUser) (*pr
 	return nil, errors.New("user not found")
 }
 
-// checkReplay ensures a nonce has not been reused.
 func checkReplay(nonce [16]byte) error {
 	nonceMutex.Lock()
 	defer nonceMutex.Unlock()
@@ -99,8 +98,6 @@ func checkReplay(nonce [16]byte) error {
 	return nil
 }
 
-// decryptPolicy performs simple XOR-based policy decoding.
-// (Placeholder logic for Step 2; will be replaced in Step 3+.)
 func decryptPolicy(policy []byte, key []byte) []byte {
 	out := make([]byte, len(policy))
 	for i := range policy {
@@ -109,7 +106,8 @@ func decryptPolicy(policy []byte, key []byte) []byte {
 	return out
 }
 
-// writeHTTPError sends a structured HTTP-style error response.
+// ================= HTTP Error =================
+
 func writeHTTPError(conn net.Conn, code int, msg string) {
 	response := fmt.Sprintf(
 		"HTTP/1.1 %d %s\r\nContent-Type: application/json\r\n\r\n{\"error\":\"%s\"}",
@@ -133,13 +131,17 @@ func httpStatusText(code int) string {
 	}
 }
 
-// ServerHandshake detects protocol format and processes the initial handshake.
-// Supports both magic-prefixed and HTTP POST-like formats.
-func ServerHandshake(reader *bufio.Reader, conn net.Conn, clients []*protocol.MemoryUser) (*session.Session, error) {
+// ================= Entry =================
+
+func ServerHandshake(
+	reader *bufio.Reader,
+	conn net.Conn,
+	clients []*protocol.MemoryUser,
+) (*session.Session, *protocol.MemoryUser, error) {
 
 	peeked, err := reader.Peek(4)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	if binary.BigEndian.Uint32(peeked) == ReflexMagic {
@@ -150,10 +152,11 @@ func ServerHandshake(reader *bufio.Reader, conn net.Conn, clients []*protocol.Me
 		return handleHTTP(reader, conn, clients)
 	}
 
-	return nil, errors.New("not reflex traffic")
+	return nil, nil, errors.New("not reflex traffic")
 }
 
-// readClientHandshake parses the raw handshake structure from a reader.
+// ================= Parsing =================
+
 func readClientHandshake(r io.Reader) (ClientHandshake, error) {
 	var hs ClientHandshake
 
@@ -190,29 +193,40 @@ func readClientHandshake(r io.Reader) (ClientHandshake, error) {
 	return hs, nil
 }
 
-// handleMagic processes magic-prefixed handshake format.
-func handleMagic(reader *bufio.Reader, conn net.Conn, clients []*protocol.MemoryUser) (*session.Session, error) {
+// ================= Magic Mode =================
+
+func handleMagic(
+	reader *bufio.Reader,
+	conn net.Conn,
+	clients []*protocol.MemoryUser,
+) (*session.Session, *protocol.MemoryUser, error) {
+
 	if _, err := io.ReadFull(reader, make([]byte, 4)); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	hs, err := readClientHandshake(reader)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	return processHandshake(conn, clients, hs)
 }
 
-// handleHTTP processes HTTP POST-like handshake format.
-func handleHTTP(reader *bufio.Reader, conn net.Conn, clients []*protocol.MemoryUser) (*session.Session, error) {
+// ================= HTTP Mode =================
+
+func handleHTTP(
+	reader *bufio.Reader,
+	conn net.Conn,
+	clients []*protocol.MemoryUser,
+) (*session.Session, *protocol.MemoryUser, error) {
 
 	var contentLength int
 
 	for {
 		line, err := reader.ReadString('\n')
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
 		if strings.HasPrefix(strings.ToLower(line), "content-length:") {
@@ -225,58 +239,61 @@ func handleHTTP(reader *bufio.Reader, conn net.Conn, clients []*protocol.MemoryU
 	}
 
 	if contentLength <= 0 {
-		return nil, errors.New("invalid content length")
+		return nil, nil, errors.New("invalid content length")
 	}
 
 	body := make([]byte, contentLength)
 	if _, err := io.ReadFull(reader, body); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	var parsed map[string]string
 	if err := json.Unmarshal(body, &parsed); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	raw, err := base64.StdEncoding.DecodeString(parsed["data"])
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	hs, err := readClientHandshake(bytes.NewReader(raw))
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	return processHandshake(conn, clients, hs)
 }
 
-// processHandshake validates freshness, prevents replay,
-// authenticates the client, derives the session key,
-// and returns an initialized session.
-func processHandshake(conn net.Conn, clients []*protocol.MemoryUser, clientHS ClientHandshake) (*session.Session, error) {
+// ================= Core =================
+
+func processHandshake(
+	conn net.Conn,
+	clients []*protocol.MemoryUser,
+	clientHS ClientHandshake,
+) (*session.Session, *protocol.MemoryUser, error) {
 
 	now := time.Now().Unix()
 	if clientHS.Timestamp < now-60 || clientHS.Timestamp > now+60 {
 		writeHTTPError(conn, 400, "timestamp invalid")
-		return nil, errors.New("timestamp invalid")
+		return nil, nil, errors.New("timestamp invalid")
 	}
 
 	if err := checkReplay(clientHS.Nonce); err != nil {
 		writeHTTPError(conn, 400, "replay detected")
-		return nil, err
+		return nil, nil, err
 	}
 
 	user, err := authenticateUserBytes(clientHS.UserID, clients)
 	if err != nil {
 		writeHTTPError(conn, 403, "authentication failed")
-		return nil, err
+		return nil, nil, err
 	}
 
 	psk := derivePreSharedKey(clientHS.UserID)
 	if len(decryptPolicy(clientHS.PolicyReq, psk)) == 0 {
 		writeHTTPError(conn, 400, "invalid policy")
-		return nil, errors.New("invalid policy")
+		return nil, nil, errors.New("invalid policy")
 	}
 
 	serverPriv, serverPub := generateKeyPair()
@@ -293,10 +310,10 @@ func processHandshake(conn net.Conn, clients []*protocol.MemoryUser, clientHS Cl
 	conn.Write([]byte("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n"))
 	conn.Write(respJSON)
 
-	return &session.Session{
-		SessionKey: sessionKey,
-		WriteNonce: 0,
-		ReadNonce:  0,
-		User:       user,
-	}, nil
+	sess, err := session.NewSession(sessionKey)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return sess, user, nil
 }
