@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package xray.proxy.reflex.outbound;
+option go_package = "github.com/xtls/xray-core/proxy/reflex/outbound";
+
+// Config is the configuration for Reflex outbound
+message Config {
+  // Server address
+  string address = 1;
+  // Server port
+  uint32 port = 2;
+  // User ID (UUID)
+  string user_id = 3;
+  // Policy setting for traffic morphing
+  string policy = 4;
+}
