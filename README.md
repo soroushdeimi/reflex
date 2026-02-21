@@ -182,7 +182,7 @@ go test github.com/xtls/xray-core/tests/reflex -v
 ### اجرای با coverage
 
 ```bash
-export PATH=$PATH:/usr/local/go/bin
+export PATH=$PATH:/usr/local/go/binلهف
 go test github.com/xtls/xray-core/tests/reflex -cover
 go test github.com/xtls/xray-core/tests/reflex -coverprofile=coverage.out
 go tool cover -html=coverage.out

@@ -26,9 +26,9 @@ import (
 // Handler implements proxy.Inbound interface for Reflex protocol.
 // It handles incoming connections and processes Reflex protocol messages.
 type Handler struct {
-	clients   []*protocol.MemoryUser
-	fallback  *FallbackConfig
-	userUUIDs []string            // Cached UUID list for quick lookup
+	clients      []*protocol.MemoryUser
+	fallback     *FallbackConfig
+	userUUIDs    []string          // Cached UUID list for quick lookup
 	userPolicies map[string]string // Map UUID to policy (traffic profile name)
 }
 
@@ -51,9 +51,7 @@ func (a *MemoryAccount) Equals(account protocol.Account) bool {
 // ToProto implements protocol.Account interface.
 // Converts MemoryAccount to protobuf message.
 func (a *MemoryAccount) ToProto() proto.Message {
-	return &reflex.Account{
-		Id: a.Id,
-	}
+	return &reflex.Account{Id: a.Id}
 }
 
 // FallbackConfig stores fallback destination configuration.
