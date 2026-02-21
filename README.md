@@ -37,3 +37,21 @@ In the final step, protocol detection and fallback behavior were implemented. Th
 
 If incoming traffic does not match the Reflex protocol, it is forwarded to a local web server using a fallback mechanism. This enables single-port multiplexing, allowing both Reflex traffic and regular HTTP traffic to coexist on the same port. This design improves resistance to active probing and increases deployment flexibility.
 
+---
+
+## How to Run
+
+To build and run the project, first make sure you are inside the `xray-core` root directory.
+
+Compile and run the project:
+
+```bash
+go build -o xray ./main
+xray run -config ./config.example.json
+```
+
+---
+
+## Problems and Solutions
+
+During development, one limitation was encountered regarding the fallback testing. Instead of relying on complex test setups, the fallback feature was validated through manual integration testing. A custom `server.go` HTTP server was created locally, and the Reflex inbound was configured to forward non-Reflex traffic to that server. The behavior was then verified using a web browser to ensure that normal HTTP requests were correctly forwarded and served.
