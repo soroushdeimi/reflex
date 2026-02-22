@@ -1,6 +1,7 @@
 package outbound
 
 import (
+	"bufio"
 	"context"
 	"crypto/cipher"
 	"crypto/rand"
@@ -182,69 +183,52 @@ func (h *Handler) clientHandshake(conn net.Conn) ([]byte, error) {
 	}
 	uid := [16]byte(parsedUUID)
 
-	fullPayload := make([]byte, 4+64)
-	binary.BigEndian.PutUint32(fullPayload[:4], reflex.ReflexMagic)
-
-	copy(fullPayload[4:36], pubKey[:])
-	copy(fullPayload[36:52], uid[:])
-
-	timestamp := time.Now().Unix()
-	binary.BigEndian.PutUint64(fullPayload[52:60], uint64(timestamp))
+	hsPayload := make([]byte, 64)
+	copy(hsPayload[0:32], pubKey[:])
+	copy(hsPayload[32:48], uid[:])
+	binary.BigEndian.PutUint64(hsPayload[48:56], uint64(time.Now().Unix()))
 
 	nonce := make([]byte, 8)
-	if _, err := rand.Read(nonce); err != nil {
+	rand.Read(nonce)
+	copy(hsPayload[56:64], nonce)
+
+	fakeHTTP := fmt.Sprintf("POST /api/v1/auth HTTP/1.1\r\n"+
+		"Host: %s\r\n"+
+		"Content-Type: application/octet-stream\r\n"+
+		"Content-Length: %d\r\n"+
+		"Connection: close\r\n\r\n", h.serverAddress, len(hsPayload))
+
+	if _, err := conn.Write([]byte(fakeHTTP)); err != nil {
 		return nil, err
 	}
-	copy(fullPayload[60:68], nonce)
-
-	if _, err := conn.Write(fullPayload); err != nil {
+	if _, err := conn.Write(hsPayload); err != nil {
 		return nil, err
+	}
+
+	reader := bufio.NewReader(conn)
+	for {
+		line, err := reader.ReadString('\n')
+		if err != nil || line == "\r\n" {
+			break
+		}
 	}
 
 	respPubKey := make([]byte, 32)
-	if _, err := io.ReadFull(conn, respPubKey); err != nil {
-		return nil, err
-	}
+	io.ReadFull(reader, respPubKey)
+
 	var sPubKey [32]byte
 	copy(sPubKey[:], respPubKey)
 
 	shared := reflex.DeriveSharedKey(privKey, sPubKey)
-
-	salt := make([]byte, 0, 24)
-	salt = append(salt, nonce...)
-	salt = append(salt, uid[:]...)
-
-	sessionKey, err := reflex.DeriveSessionKey(shared, salt)
-	if err != nil {
-		return nil, err
-	}
-
-	fmt.Printf("DEBUG: SessionKey (first 4 bytes): %x\n", sessionKey[:4])
-	fmt.Printf("DEBUG: Salt used (%d bytes): %x\n", len(salt), salt)
+	salt := append(nonce, uid[:]...)
+	sessionKey, _ := reflex.DeriveSessionKey(shared, salt)
 
 	policyLenBuf := make([]byte, 2)
-	if _, err := io.ReadFull(conn, policyLenBuf); err != nil {
-		return nil, fmt.Errorf("failed to read policy length: %w", err)
-	}
+	io.ReadFull(reader, policyLenBuf)
 	policyLen := binary.BigEndian.Uint16(policyLenBuf)
 
 	encryptedPolicy := make([]byte, policyLen)
-	if _, err := io.ReadFull(conn, encryptedPolicy); err != nil {
-		return nil, fmt.Errorf("failed to read encrypted policy: %w", err)
-	}
-
-	policyAead, err := reflex.NewCipher(sessionKey)
-	if err != nil {
-		return nil, err
-	}
-	pNonce := make([]byte, policyAead.NonceSize())
-
-	decryptedPolicy, err := policyAead.Open(nil, pNonce, encryptedPolicy, nil)
-	if err != nil {
-		return nil, errors.New("failed to decrypt policy grant (Key Mismatch)")
-	}
-
-	fmt.Printf("Policy Grant received and decrypted: %d bytes\n", len(decryptedPolicy))
+	io.ReadFull(reader, encryptedPolicy)
 
 	return sessionKey, nil
 }

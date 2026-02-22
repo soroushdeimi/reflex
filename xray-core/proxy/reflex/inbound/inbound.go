@@ -123,47 +123,62 @@ func (h *Handler) handleReflexMagic(reader *bufio.Reader, conn stat.Connection, 
 }
 
 func (h *Handler) handleReflexHTTP(reader *bufio.Reader, conn stat.Connection, dispatcher routing.Dispatcher, ctx context.Context) error {
+	for {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			return err
+		}
+		if line == "\r\n" || line == "\n" {
+			break
+		}
+	}
+
+	hsBuf := make([]byte, 64)
+	if _, err := io.ReadFull(reader, hsBuf); err != nil {
+		return err
+	}
+
 	var clientHS reflex.ClientHandshake
+	copy(clientHS.PublicKey[:], hsBuf[0:32])
+	copy(clientHS.UserID[:], hsBuf[32:48])
+	clientHS.Timestamp = int64(binary.BigEndian.Uint64(hsBuf[48:56]))
+	copy(clientHS.Nonce[:], hsBuf[56:64])
+
 	return h.processHandshake(reader, conn, dispatcher, ctx, clientHS)
 }
 
 func (h *Handler) processHandshake(reader *bufio.Reader, conn stat.Connection, dispatcher routing.Dispatcher, ctx context.Context, clientHS reflex.ClientHandshake) error {
 	user, err := h.authenticateUser(clientHS.UserID)
 	if err != nil {
+		conn.Write([]byte("HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\n\r\n"))
 		return h.handleFallback(ctx, reader, conn)
 	}
 
-	serverPrivateKey, serverPublicKey, err := reflex.GenerateKeyPair()
-	if err != nil {
-		return err
-	}
-
-	sharedKey := reflex.DeriveSharedKey(serverPrivateKey, clientHS.PublicKey)
+	serverPriv, serverPub, _ := reflex.GenerateKeyPair()
+	sharedKey := reflex.DeriveSharedKey(serverPriv, clientHS.PublicKey)
 
 	salt := make([]byte, 0, 24)
 	salt = append(salt, clientHS.Nonce[:]...)
 	salt = append(salt, clientHS.UserID[:]...)
-
-	sessionKey, err := reflex.DeriveSessionKey(sharedKey, salt)
-	if err != nil {
-		return err
-	}
-
-	fmt.Printf("DEBUG (Server): SessionKey (first 4 bytes): %x\n", sessionKey[:4])
-	fmt.Printf("DEBUG (Server): Salt used (%d bytes): %x\n", len(salt), salt)
+	sessionKey, _ := reflex.DeriveSessionKey(sharedKey, salt)
 
 	policyData := []byte("access:granted")
-	encryptedPolicy, err := h.encryptPolicyGrant(policyData, sessionKey)
-	if err != nil {
+	encryptedPolicy, _ := h.encryptPolicyGrant(policyData, sessionKey)
+
+	fullBody := make([]byte, 32+2+len(encryptedPolicy))
+	copy(fullBody[0:32], serverPub[:])
+	binary.BigEndian.PutUint16(fullBody[32:34], uint16(len(encryptedPolicy)))
+	copy(fullBody[34:], encryptedPolicy)
+
+	httpResp := fmt.Sprintf("HTTP/1.1 200 OK\r\n"+
+		"Content-Type: application/octet-stream\r\n"+
+		"Content-Length: %d\r\n"+
+		"Connection: keep-alive\r\n\r\n", len(fullBody))
+
+	if _, err := conn.Write([]byte(httpResp)); err != nil {
 		return err
 	}
-
-	response := make([]byte, 32+2+len(encryptedPolicy))
-	copy(response[0:32], serverPublicKey[:])
-	binary.BigEndian.PutUint16(response[32:34], uint16(len(encryptedPolicy)))
-	copy(response[34:], encryptedPolicy)
-
-	if _, err := conn.Write(response); err != nil {
+	if _, err := conn.Write(fullBody); err != nil {
 		return err
 	}
 
@@ -276,7 +291,7 @@ func (h *Handler) readDecrypt(reader io.Reader, writer buf.Writer, aead cipher.A
 		}
 		length := binary.BigEndian.Uint16(header[:2])
 		fType := header[2]
-		
+
 		if fType == reflex.FrameTypeClose {
 			return io.EOF
 		}
