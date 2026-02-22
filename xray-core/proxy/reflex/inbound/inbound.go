@@ -224,15 +224,29 @@ func (h *Handler) encryptPolicyGrant(data []byte, key []byte) ([]byte, error) {
 }
 
 func (h *Handler) handleSession(ctx context.Context, reader *bufio.Reader, conn stat.Connection, dispatcher routing.Dispatcher, key []byte, user *protocol.MemoryUser) error {
-	// ۱. ساخت Cipher
-	aead, err := reflex.NewCipher(key)
+
+	// ۱. استخراج کلیدهای جهت‌دار از SessionKey
+	c2sKey, s2cKey, err := reflex.DeriveDirectionalKeys(key)
 	if err != nil {
 		return err
 	}
 
-	nonce := make([]byte, aead.NonceSize()) // نانس شروع (۰)
+	// ۲. ساخت Cipher های مجزا (دقت کنید در سرور نقش‌ها برعکس کلاینت است)
+	// سرور دیتایی که کلاینت فرستاده را با c2s باز می‌کند
+	readAEAD, err := reflex.NewCipher(c2sKey)
+	if err != nil {
+		return err
+	}
 
-	// ۲. دریافت و رمزگشایی آدرس مقصد
+	// سرور پاسخ خود را با کلید s2c برای کلاینت رمز می‌کند
+	writeAEAD, err := reflex.NewCipher(s2cKey)
+	if err != nil {
+		return err
+	}
+
+	inNonce := make([]byte, readAEAD.NonceSize()) // نانس صفر خواندن سرور (برای باز کردن آدرس)
+
+	// ۳. دریافت و رمزگشایی آدرس مقصد
 	header := make([]byte, 2)
 	if _, err := io.ReadFull(reader, header); err != nil {
 		return err
@@ -244,20 +258,28 @@ func (h *Handler) handleSession(ctx context.Context, reader *bufio.Reader, conn 
 		return err
 	}
 
-	decryptedAddr, err := aead.Open(nil, nonce, encryptedAddr, nil)
-	if err != nil {
-		return errors.New("failed to decrypt target address. key mismatch or corruption")
+	decryptedAddr, err := readAEAD.Open(nil, inNonce, encryptedAddr, nil)
+
+	// اگر آدرس باز نشد یا خالی بود، فورا کانکشن را ببند و نگذار به Dispatcher برسد
+	if err != nil || len(decryptedAddr) == 0 {
+		return errors.New("security block: failed to decrypt target address, dropping connection to prevent panic")
 	}
 
-	// ۳. پارس کردن آدرس و اتصال به مقصد واقعی
+	// ۴. پارس کردن آدرس و اتصال به مقصد واقعی
 	target, err := net.ParseDestination(string(decryptedAddr))
 	if err != nil {
 		return fmt.Errorf("invalid target address received: %w", err)
 	}
+
+	// اگر آدرس فاقد پروتکل tcp/udp باشد، IsValid مقدار false برمی‌گرداند
+	if !target.IsValid() {
+		return fmt.Errorf("security block: parsed destination is invalid (unknown network): %s", target.String())
+	}
+
 	fmt.Printf("DEBUG (Server): Forwarding traffic to: %s\n", target.String())
 
-	// ۴. آماده‌سازی برای تبادل دیتا (افزایش نانس به ۱)
-	h.increment(nonce)
+	// آماده‌سازی برای تبادل دیتا (افزایش نانس خواندن به ۱)
+	h.increment(inNonce)
 
 	sessionCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -267,21 +289,18 @@ func (h *Handler) handleSession(ctx context.Context, reader *bufio.Reader, conn 
 		return err
 	}
 
-	// کپی نانس برای گوروتین‌ها
-	serverOutNonce := make([]byte, len(nonce))
-	copy(serverOutNonce, nonce)
-	serverInNonce := make([]byte, len(nonce))
-	copy(serverInNonce, nonce)
+	// نانس نوشتن سرور (از صفر شروع می‌شود برای اولین دیتای دانلود)
+	outNonce := make([]byte, writeAEAD.NonceSize())
 
 	errs := make(chan error, 2)
 
-	// ۵. شروع مسیرهای تبادل دیتا
+	// ۵. شروع مسیرهای تبادل دیتا با سایفرهای مجزا
 	go func() {
-		errs <- h.readDecrypt(reader, link.Writer, aead, serverInNonce)
+		errs <- h.readDecrypt(reader, link.Writer, readAEAD, inNonce)
 	}()
 
 	go func() {
-		errs <- h.encryptWrite(link.Reader, conn, aead, serverOutNonce)
+		errs <- h.encryptWrite(link.Reader, conn, writeAEAD, outNonce)
 	}()
 
 	return <-errs

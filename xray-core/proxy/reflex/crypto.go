@@ -6,6 +6,7 @@ import (
 	"io"
 
 	"crypto/cipher"
+
 	"golang.org/x/crypto/chacha20poly1305"
 	"golang.org/x/crypto/curve25519"
 	"golang.org/x/crypto/hkdf"
@@ -39,4 +40,23 @@ func DeriveSessionKey(sharedKey [32]byte, salt []byte) ([]byte, error) {
 
 func NewCipher(key []byte) (cipher.AEAD, error) {
 	return chacha20poly1305.New(key)
+}
+
+func DeriveDirectionalKeys(sessionKey []byte) (c2sKey []byte, s2cKey []byte, err error) {
+	c2sKey = make([]byte, 32)
+	s2cKey = make([]byte, 32)
+
+	// Client -> Server
+	kdfC2S := hkdf.New(sha256.New, sessionKey, nil, []byte("reflex-c2s"))
+	if _, err := io.ReadFull(kdfC2S, c2sKey); err != nil {
+		return nil, nil, err
+	}
+
+	// Server -> Client
+	kdfS2C := hkdf.New(sha256.New, sessionKey, nil, []byte("reflex-s2c"))
+	if _, err := io.ReadFull(kdfS2C, s2cKey); err != nil {
+		return nil, nil, err
+	}
+
+	return c2sKey, s2cKey, nil
 }

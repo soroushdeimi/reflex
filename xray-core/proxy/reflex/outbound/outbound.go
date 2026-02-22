@@ -27,7 +27,7 @@ type Handler struct {
 }
 
 func (h *Handler) Process(ctx context.Context, link *transport.Link, dialer internet.Dialer) error {
-	// ۱. اتصال به سرور محمد
+	// ۱. اتصال به سرور
 	destination := net.TCPDestination(net.ParseAddress(h.serverAddress), h.serverPort)
 	conn, err := dialer.Dial(ctx, destination)
 	if err != nil {
@@ -41,25 +41,37 @@ func (h *Handler) Process(ctx context.Context, link *transport.Link, dialer inte
 		return fmt.Errorf("reflex handshake failed: %w", err)
 	}
 
-	// ۳. ساخت Cipher
-	aead, err := reflex.NewCipher(sessionKey)
+	// ۳. استخراج کلیدهای جهت‌دار برای استپ ۳
+	c2sKey, s2cKey, err := reflex.DeriveDirectionalKeys(sessionKey)
 	if err != nil {
-		return fmt.Errorf("failed to create cipher: %w", err)
+		return fmt.Errorf("failed to derive directional keys: %w", err)
 	}
 
-	// به جای proxy.TargetFromContext(ctx):
+	// ۴. ساخت Cipher های مجزا
+	// کلاینت دیتای خود را با کلید c2s (آپلود) رمز می‌کند
+	writeAEAD, err := reflex.NewCipher(c2sKey)
+	if err != nil {
+		return fmt.Errorf("failed to create write cipher: %w", err)
+	}
+
+	// کلاینت پاسخ سرور را با کلید s2c (دانلود) باز می‌کند
+	readAEAD, err := reflex.NewCipher(s2cKey)
+	if err != nil {
+		return fmt.Errorf("failed to create read cipher: %w", err)
+	}
+
+	// پیدا کردن آدرس مقصد
 	outbounds := session.OutboundsFromContext(ctx)
 	if len(outbounds) == 0 || !outbounds[0].Target.IsValid() {
 		return errors.New("failed to determine target destination")
 	}
-	targetAddrRaw := outbounds[0].Target.NetAddr()
 
-	// رمزنگاری آدرس مقصد با نانس صفر
-	nonce := make([]byte, aead.NonceSize()) // نانس شروع (۰)
+	targetStr := outbounds[0].Target.String()
 
-	encryptedAddr := aead.Seal(nil, nonce, []byte(targetAddrRaw), nil)
+	// ۵. رمزنگاری و ارسال آدرس مقصد
+	outNonce := make([]byte, writeAEAD.NonceSize())
+	encryptedAddr := writeAEAD.Seal(nil, outNonce, []byte(targetStr), nil)
 
-	// ارسال فریم آدرس: [2B Length][Encrypted Address]
 	addrHeader := make([]byte, 2)
 	binary.BigEndian.PutUint16(addrHeader, uint16(len(encryptedAddr)))
 	if _, err := conn.Write(addrHeader); err != nil {
@@ -69,26 +81,23 @@ func (h *Handler) Process(ctx context.Context, link *transport.Link, dialer inte
 		return err
 	}
 
-	// ۵. افزایش نانس (حالا نانس ۱ است) برای شروع تبادل دیتای اصلی
-	h.increment(nonce)
+	// افزایش نانس نوشتن برای دیتای بعدی
+	h.increment(outNonce)
 
-	// ۶. مدیریت مسیرهای آپلود و دانلود
+	// آماده‌سازی نانس خواندن (صفر است چون هنوز چیزی از سرور نخوانده‌ایم)
+	inNonce := make([]byte, readAEAD.NonceSize())
+
+	// ۶. مدیریت مسیرهای آپلود و دانلود با سایفرهای جداگانه
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	errs := make(chan error, 2)
 
-	// کپی نانس برای استفاده در گوروتین‌ها (برای جلوگیری از Race Condition)
-	outNonce := make([]byte, len(nonce))
-	copy(outNonce, nonce)
-	inNonce := make([]byte, len(nonce))
-	copy(inNonce, nonce)
-
 	go func() {
-		errs <- h.encryptWrite(link.Reader, conn, aead, outNonce)
+		errs <- h.encryptWrite(link.Reader, conn, writeAEAD, outNonce)
 	}()
 
 	go func() {
-		errs <- h.readDecrypt(conn, link.Writer, aead, inNonce)
+		errs <- h.readDecrypt(conn, link.Writer, readAEAD, inNonce)
 	}()
 
 	select {
