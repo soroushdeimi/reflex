@@ -9,11 +9,6 @@ type User struct {
 	Policy string
 }
 
-// Account for protocol.Account (step1).
-type Account struct {
-	Id string
-}
-
 // Fallback config (step1).
 type Fallback struct {
 	Dest uint32

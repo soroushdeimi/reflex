@@ -1,15 +1,11 @@
 package reflex
 
 import (
-	"encoding/json"
-
-	"github.com/xtls/xray-core/common"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	"github.com/xtls/xray-core/common/errors"
 	"github.com/xtls/xray-core/common/protocol"
-	"github.com/xtls/xray-core/common/serial"
 	"github.com/xtls/xray-core/common/uuid"
 )
 
@@ -47,19 +43,6 @@ func (a *MemoryAccount) ToProto() proto.Message {
 		ID:     a.ID.String(),
 		Policy: a.Policy,
 	}
-}
-
-func init() {
-	common.Must(serial.RegisterCustomCodec(
-		(*Account)(nil),
-		"xray.proxy.reflex.Account",
-		func(message proto.Message) ([]byte, error) {
-			return json.Marshal(message.(*Account))
-		},
-		func(data []byte, message proto.Message) error {
-			return json.Unmarshal(data, message.(*Account))
-		},
-	))
 }
 
 // AsAccount converts Account to MemoryAccount

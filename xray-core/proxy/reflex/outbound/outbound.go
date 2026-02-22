@@ -2,6 +2,7 @@ package outbound
 
 import (
 	"context"
+	"encoding/binary"
 	"io"
 	"strings"
 
@@ -23,6 +24,14 @@ import (
 func init() {
 	common.Must(common.RegisterConfig((*Config)(nil), func(ctx context.Context, config interface{}) (interface{}, error) {
 		return New(ctx, config.(*Config))
+	}))
+	common.Must(common.RegisterConfig((*reflex.OutboundConfig)(nil), func(ctx context.Context, config interface{}) (interface{}, error) {
+		cfg := config.(*reflex.OutboundConfig)
+		return New(ctx, &Config{
+			Address: cfg.Address,
+			Port:    cfg.Port,
+			UserID:  cfg.Id,
+		})
 	}))
 }
 
@@ -80,8 +89,11 @@ func (h *Handler) Process(ctx context.Context, link *transport.Link, dialer inte
 	// Send client handshake
 	clientHS := encoding.NewClientHandshake(parsedID, clientKeyPair.PublicKey)
 	clientHSBytes := encoding.MarshalClientHandshake(clientHS)
+	packet := make([]byte, 4+len(clientHSBytes))
+	binary.BigEndian.PutUint32(packet[:4], reflex.ReflexMagic)
+	copy(packet[4:], clientHSBytes)
 
-	if _, err := rawConn.Write(clientHSBytes); err != nil {
+	if _, err := rawConn.Write(packet); err != nil {
 		return errors.New("failed to send client handshake").Base(err)
 	}
 

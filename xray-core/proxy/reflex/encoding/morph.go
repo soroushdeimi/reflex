@@ -78,6 +78,20 @@ var Profiles = map[string]*TrafficProfile{
 			{Delay: 15 * time.Millisecond, Weight: 0.3},
 		},
 	},
+	"mimic-http2-api": {
+		Name: "HTTP/2 API",
+		PacketSizes: []PacketSizeDist{
+			{Size: 200, Weight: 0.2},
+			{Size: 500, Weight: 0.3},
+			{Size: 1000, Weight: 0.3},
+			{Size: 1500, Weight: 0.2},
+		},
+		Delays: []DelayDist{
+			{Delay: 5 * time.Millisecond, Weight: 0.3},
+			{Delay: 10 * time.Millisecond, Weight: 0.4},
+			{Delay: 15 * time.Millisecond, Weight: 0.3},
+		},
+	},
 }
 
 func (p *TrafficProfile) GetPacketSize() int {
