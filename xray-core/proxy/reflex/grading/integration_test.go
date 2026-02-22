@@ -13,14 +13,11 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"io"
 	stdnet "net"
 	"net/http"
-	"strings"
 	"sync"
-	"syscall"
 	"testing"
 	"time"
 
@@ -39,26 +36,11 @@ import (
 type mockDispatcher struct{}
 
 func (m *mockDispatcher) Type() interface{} { return (*routing.Dispatcher)(nil) }
-func (m *mockDispatcher) Start() error { return nil }
-func (m *mockDispatcher) Close() error { return nil }
 func (m *mockDispatcher) Dispatch(ctx context.Context, dest net.Destination) (*transport.Link, error) {
 	return nil, fmt.Errorf("mock: no outbound")
 }
 func (m *mockDispatcher) DispatchLink(ctx context.Context, dest net.Destination, link *transport.Link) error {
 	return fmt.Errorf("mock: no outbound")
-}
-
-func listenLocalhostTCP(t *testing.T) stdnet.Listener {
-	t.Helper()
-	ln, err := stdnet.Listen("tcp", "127.0.0.1:0")
-	if err == nil {
-		return ln
-	}
-	if errors.Is(err, syscall.EPERM) || errors.Is(err, syscall.EACCES) || strings.Contains(err.Error(), "operation not permitted") {
-		t.Skipf("skipping: local tcp listen unavailable in this environment: %v", err)
-	}
-	t.Fatalf("Listen: %v", err)
-	return nil
 }
 
 // --- Step 1: Structure ---
@@ -126,7 +108,10 @@ func TestStep1BuildAndListen(t *testing.T) {
 		t.Skip("handler does not implement Process")
 		return
 	}
-	ln := listenLocalhostTCP(t)
+	ln, err := stdnet.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("Listen: %v", err)
+	}
 	defer ln.Close()
 	disp := &mockDispatcher{}
 	go func() {
@@ -169,7 +154,10 @@ func TestStep2HandshakeMagic(t *testing.T) {
 		t.Skip("handler does not implement Process")
 		return
 	}
-	ln := listenLocalhostTCP(t)
+	ln, err := stdnet.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("Listen: %v", err)
+	}
 	defer ln.Close()
 	disp := &mockDispatcher{}
 	var serverConn stdnet.Conn
@@ -241,7 +229,10 @@ func TestStep2AuthWithUUID(t *testing.T) {
 		t.Skip("handler does not implement Process")
 		return
 	}
-	ln := listenLocalhostTCP(t)
+	ln, err := stdnet.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("Listen: %v", err)
+	}
 	defer ln.Close()
 	disp := &mockDispatcher{}
 	go func() {
@@ -286,7 +277,10 @@ func TestStep2SessionKeyDerive(t *testing.T) {
 		t.Skip("handler does not implement Process")
 		return
 	}
-	ln := listenLocalhostTCP(t)
+	ln, err := stdnet.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("Listen: %v", err)
+	}
 	defer ln.Close()
 	disp := &mockDispatcher{}
 	go func() {
@@ -331,7 +325,10 @@ func TestStep2HandshakeKeyExchange(t *testing.T) {
 		t.Skip("handler does not implement Process")
 		return
 	}
-	ln := listenLocalhostTCP(t)
+	ln, err := stdnet.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("Listen: %v", err)
+	}
 	defer ln.Close()
 	disp := &mockDispatcher{}
 	go func() {
@@ -381,7 +378,10 @@ func TestStep2HandshakeResponseLength(t *testing.T) {
 		t.Skip("handler does not implement Process")
 		return
 	}
-	ln := listenLocalhostTCP(t)
+	ln, err := stdnet.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("Listen: %v", err)
+	}
 	defer ln.Close()
 	disp := &mockDispatcher{}
 	go func() {
@@ -429,7 +429,10 @@ func TestStep3FrameFormat(t *testing.T) {
 		t.Skip("handler does not implement Process")
 		return
 	}
-	ln := listenLocalhostTCP(t)
+	ln, err := stdnet.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("Listen: %v", err)
+	}
 	defer ln.Close()
 	disp := &mockDispatcher{}
 	go func() {
@@ -475,7 +478,10 @@ func TestStep3ChaChaAEAD(t *testing.T) {
 		t.Skip("handler does not implement Process")
 		return
 	}
-	ln := listenLocalhostTCP(t)
+	ln, err := stdnet.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("Listen: %v", err)
+	}
 	defer ln.Close()
 	disp := &mockDispatcher{}
 	go func() {
@@ -518,7 +524,10 @@ func TestStep3FrameTypeClose(t *testing.T) {
 		t.Skip("handler does not implement Process")
 		return
 	}
-	ln := listenLocalhostTCP(t)
+	ln, err := stdnet.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("Listen: %v", err)
+	}
 	defer ln.Close()
 	disp := &mockDispatcher{}
 	go func() {
@@ -584,7 +593,10 @@ func TestStep3ReplayProtection(t *testing.T) {
 		t.Skip("handler does not implement Process")
 		return
 	}
-	ln := listenLocalhostTCP(t)
+	ln, err := stdnet.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("Listen: %v", err)
+	}
 	defer ln.Close()
 	disp := &mockDispatcher{}
 	go func() {
@@ -632,7 +644,10 @@ func TestStep4Fallback(t *testing.T) {
 			close(fallbackDone)
 		}),
 	}
-	fln := listenLocalhostTCP(t)
+	fln, err := stdnet.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("fallback Listen: %v", err)
+	}
 	fallbackPort := uint32(fln.Addr().(*stdnet.TCPAddr).Port)
 	go fallbackSrv.Serve(fln)
 	defer fallbackSrv.Close()
@@ -655,7 +670,10 @@ func TestStep4Fallback(t *testing.T) {
 		t.Skip("handler does not implement Process")
 		return
 	}
-	reflexLn := listenLocalhostTCP(t)
+	reflexLn, err := stdnet.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("Reflex Listen: %v", err)
+	}
 	defer reflexLn.Close()
 	go func() {
 		conn, _ := reflexLn.Accept()
@@ -716,7 +734,10 @@ func TestStep4ProxyDetectReflexNotFallback(t *testing.T) {
 		t.Skip("handler does not implement Process")
 		return
 	}
-	ln := listenLocalhostTCP(t)
+	ln, err := stdnet.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("Listen: %v", err)
+	}
 	defer ln.Close()
 	disp := &mockDispatcher{}
 	go func() {
@@ -846,7 +867,10 @@ func TestIntegrationMultipleHandshakes(t *testing.T) {
 		t.Skip("handler does not implement Process")
 		return
 	}
-	ln := listenLocalhostTCP(t)
+	ln, err := stdnet.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("Listen: %v", err)
+	}
 	defer ln.Close()
 	disp := &mockDispatcher{}
 	var wg sync.WaitGroup
@@ -903,7 +927,10 @@ func TestGradingReadResponse(t *testing.T) {
 		t.Skip("handler does not implement Process")
 		return
 	}
-	ln := listenLocalhostTCP(t)
+	ln, err := stdnet.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("Listen: %v", err)
+	}
 	defer ln.Close()
 	disp := &mockDispatcher{}
 	go func() {
