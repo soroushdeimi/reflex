@@ -9,7 +9,7 @@ import (
 )
 
 func TestHelperFunctions(t *testing.T) {
-	// 1. Test Key Generation
+	// 1.Test Key Generation
 	priv, pub, err := generateKeyPair()
 	if err != nil {
 		t.Fatalf("generateKeyPair failed: %v", err)
