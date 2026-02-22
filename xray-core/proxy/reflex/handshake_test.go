@@ -22,7 +22,6 @@ func TestReadClientHandshakeHTTPWithRaw_RoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// ✅ EncodeClientHandshakeHTTP نیاز به host و path هم دارد
 	req := EncodeClientHandshakeHTTP(hs, "example.com", "")
 
 	br := bufio.NewReader(bytes.NewReader(req))
@@ -47,7 +46,6 @@ func TestReadClientHandshakeHTTPWithRaw_RoundTrip(t *testing.T) {
 }
 
 func TestReadClientHandshakeHTTPWithRaw_InvalidContentLength(t *testing.T) {
-	// invalid Content-Length باید error بده (مسیر fmt.Sscanf هم پوشش داده می‌شود)
 	req := []byte("POST / HTTP/1.1\r\nHost: x\r\nContent-Length: abc\r\n\r\nxxxx")
 	br := bufio.NewReader(bytes.NewReader(req))
 
