@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package xray.proxy.reflex;
+option go_package = "github.com/xtls/xray-core/proxy/reflex";
+
+// Account represents a Reflex user account
+message Account {
+  // ID of the account, in UUID format
+  string id = 1;
+  // Policy setting for traffic morphing (e.g., "mimic-http2-api", "mimic-youtube")
+  string policy = 2;
+}
