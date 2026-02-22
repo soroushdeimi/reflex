@@ -1,0 +1,84 @@
+package reflex
+
+import (
+	"bytes"
+	"testing"
+
+	"github.com/xtls/xray-core/common/protocol"
+	"github.com/xtls/xray-core/common/uuid"
+)
+
+// MockAccount to satisfy the interface used in auth.go
+type MockAccount struct {
+	protocol.Account
+	id *protocol.ID
+}
+
+func (m *MockAccount) AsID() *protocol.ID {
+	return m.id
+}
+
+// Test key pair generation and shared key derivation
+func TestCryptoLogic(t *testing.T) {
+	// Generate keys
+	privC, pubC, err := GenerateKeyPair()
+	if err != nil {
+		t.Fatal(err)
+	}
+	privS, pubS, err := GenerateKeyPair()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Derive shared keys
+	sharedC := DeriveSharedKey(privC, pubS)
+	sharedS := DeriveSharedKey(privS, pubC)
+
+	if !bytes.Equal(sharedC[:], sharedS[:]) {
+		t.Error("Shared keys do not match")
+	}
+
+	// Derive session keys
+	salt := []byte("test-salt")
+	keyC, _ := DeriveSessionKey(sharedC, salt)
+	keyS, _ := DeriveSessionKey(sharedS, salt)
+
+	if !bytes.Equal(keyC, keyS) {
+		t.Error("Session keys do not match")
+	}
+}
+
+// Test user authentication logic
+func TestAuthentication(t *testing.T) {
+	testUUID := uuid.New()
+	userID := [16]byte(testUUID)
+
+	// Create a valid ID using the constructor
+	targetID := protocol.NewID(testUUID)
+
+	// Mock a user list using MockAccount
+	users := []*protocol.MemoryUser{
+		{
+			Account: &MockAccount{
+				id: targetID,
+			},
+		},
+	}
+
+	// Test successful auth
+	user, err := AuthenticateUser(userID, users)
+	if err != nil {
+		t.Errorf("Authentication failed: %v", err)
+	}
+	if user == nil {
+		t.Error("User should not be nil")
+	}
+
+	// Test failed auth
+	wrongID := [16]byte(uuid.New())
+	_, err = AuthenticateUser(wrongID, users)
+	if err == nil {
+		t.Error("Expected error for non-existent user")
+	}
+
+}
