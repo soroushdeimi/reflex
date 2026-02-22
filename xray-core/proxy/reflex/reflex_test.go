@@ -20,7 +20,7 @@ func (m *MockAccount) AsID() *protocol.ID {
 
 // Test key pair generation and shared key derivation
 func TestCryptoLogic(t *testing.T) {
-	// 1. Generate keys
+	// Generate keys
 	privC, pubC, err := GenerateKeyPair()
 	if err != nil {
 		t.Fatal(err)
@@ -30,7 +30,7 @@ func TestCryptoLogic(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// 2. Derive shared keys
+	// Derive shared keys
 	sharedC := DeriveSharedKey(privC, pubS)
 	sharedS := DeriveSharedKey(privS, pubC)
 
@@ -38,7 +38,7 @@ func TestCryptoLogic(t *testing.T) {
 		t.Error("Shared keys do not match")
 	}
 
-	// 3. Derive session keys
+	// Derive session keys
 	salt := []byte("test-salt")
 	keyC, _ := DeriveSessionKey(sharedC, salt)
 	keyS, _ := DeriveSessionKey(sharedS, salt)
@@ -65,7 +65,7 @@ func TestAuthentication(t *testing.T) {
 		},
 	}
 
-	// 1. Test successful auth
+	// Test successful auth
 	user, err := AuthenticateUser(userID, users)
 	if err != nil {
 		t.Errorf("Authentication failed: %v", err)
@@ -74,7 +74,7 @@ func TestAuthentication(t *testing.T) {
 		t.Error("User should not be nil")
 	}
 
-	// 2. Test failed auth
+	// Test failed auth
 	wrongID := [16]byte(uuid.New())
 	_, err = AuthenticateUser(wrongID, users)
 	if err == nil {

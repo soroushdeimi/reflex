@@ -6,7 +6,7 @@ type ClientHandshake struct {
 	PublicKey [32]byte
 	UserID    [16]byte
 	Timestamp int64
-	Nonce     [8]byte // حتماً ۸ بایت باشد تا با پکت ۶۴ بایتی هماهنگ شود
+	Nonce     [8]byte
 }
 
 type ClientHandshakePacket struct {

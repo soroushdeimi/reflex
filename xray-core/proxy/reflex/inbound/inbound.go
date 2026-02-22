@@ -22,8 +22,6 @@ import (
 )
 
 const (
-	// حداقل اندازه برای تشخیص handshake
-	// Magic number (4) + حداقل اندازه handshake
 	ReflexMinHandshakeSize = 64
 )
 
@@ -32,8 +30,6 @@ type Handler struct {
 	fallback *FallbackConfig
 }
 
-// MemoryAccount برای ذخیره اطلاعات کاربر
-// باید protocol.Account interface رو implement کنه
 type MemoryAccount struct {
 	Id string
 }
@@ -63,29 +59,22 @@ func (h *Handler) Network() []net.Network {
 }
 
 func (h *Handler) Process(ctx context.Context, network net.Network, conn stat.Connection, dispatcher routing.Dispatcher) error {
-	// Wrap connection در bufio.Reader
 	reader := bufio.NewReader(conn)
 
-	// Peek کردن چند بایت اول (بدون مصرف)
 	peeked, err := reader.Peek(ReflexMinHandshakeSize)
 	if err != nil {
 		return err
 	}
 
-	// چک کردن که آیا Reflex هست یا نه
 	if h.isReflexHandshake(peeked) {
-		// Reflex هست - پردازش کن
-		// باید منطق handshake رو از step2 صدا بزنی:
 		if h.isReflexMagic(peeked) {
 			return h.handleReflexMagic(reader, conn, dispatcher, ctx)
 		}
 		if h.isHTTPPostLike(peeked) {
 			return h.handleReflexHTTP(reader, conn, dispatcher, ctx)
 		}
-		// اگه هیچکدوم نبود، به fallback برو
 		return h.handleFallback(ctx, reader, conn)
 	} else {
-		// Reflex نیست - به fallback بفرست
 		return h.handleFallback(ctx, reader, conn)
 	}
 }
@@ -98,21 +87,17 @@ func (h *Handler) isReflexMagic(data []byte) bool {
 	return magic == reflex.ReflexMagic
 }
 func (h *Handler) isHTTPPostLike(peeked []byte) bool {
-	// چک کردن حداقل طول
 	if len(peeked) < 5 {
 		return false
 	}
-	// چک کردن متدها (فعلا فقط POST برای مرحله ۴)
 	return string(peeked[:5]) == "POST " || string(peeked[:4]) == "GET " || string(peeked[:4]) == "PUT "
 }
 
 func (h *Handler) isReflexHandshake(data []byte) bool {
-	// اول magic number رو چک کن (سریع‌تر)
 	if h.isReflexMagic(data) {
 		return true
 	}
 
-	// بعد HTTP POST-like رو چک کن (پنهان‌کارتر)
 	if h.isHTTPPostLike(data) {
 		return true
 	}
@@ -121,16 +106,13 @@ func (h *Handler) isReflexHandshake(data []byte) bool {
 }
 
 func (h *Handler) handleReflexMagic(reader *bufio.Reader, conn stat.Connection, dispatcher routing.Dispatcher, ctx context.Context) error {
-	// رد کردن ۴ بایت مجیک (چون قبلاً Peek شده)
 	reader.Discard(4)
 
-	// خواندن ۶۴ بایت دیتای هندشیک
 	hsBuf := make([]byte, 64)
 	if _, err := io.ReadFull(reader, hsBuf); err != nil {
 		return err
 	}
 
-	// باز کردن بایت‌ها در استراکت
 	var clientHS reflex.ClientHandshake
 	copy(clientHS.PublicKey[:], hsBuf[0:32])
 	copy(clientHS.UserID[:], hsBuf[32:48])
@@ -141,42 +123,23 @@ func (h *Handler) handleReflexMagic(reader *bufio.Reader, conn stat.Connection, 
 }
 
 func (h *Handler) handleReflexHTTP(reader *bufio.Reader, conn stat.Connection, dispatcher routing.Dispatcher, ctx context.Context) error {
-	// Parse کردن HTTP POST request
-	// استخراج base64 encoded data
-	// decode کردن و parse کردن ClientHandshake
-
-	// اینجا باید HTTP request رو parse کنی
-	// برای سادگی، می‌تونی از یه HTTP parser استفاده کنی
-	// یا خودت parse کنی
-
 	var clientHS reflex.ClientHandshake
-	// ... parse کردن از HTTP POST
-
-	//todo Step 4
-
 	return h.processHandshake(reader, conn, dispatcher, ctx, clientHS)
 }
 
 func (h *Handler) processHandshake(reader *bufio.Reader, conn stat.Connection, dispatcher routing.Dispatcher, ctx context.Context, clientHS reflex.ClientHandshake) error {
-	// ۱. احراز هویت کاربر
 	user, err := h.authenticateUser(clientHS.UserID)
 	if err != nil {
-		// اگر کاربر معتبر نبود، به Fallback هدایت کن (مرحله ۴)
 		return h.handleFallback(ctx, reader, conn)
 	}
 
-	// ۲. تولید کلید موقت سرور (Ephemeral Key Pair)
 	serverPrivateKey, serverPublicKey, err := reflex.GenerateKeyPair()
 	if err != nil {
 		return err
 	}
 
-	// ۳. محاسبه کلید مشترک (Shared Key) با استفاده از PubKey کلاینت
 	sharedKey := reflex.DeriveSharedKey(serverPrivateKey, clientHS.PublicKey)
 
-	// ۴. محاسبه سالت (Salt) - بسیار حیاتی برای هماهنگی با کلاینت
-	// دقت شود: حتماً ۲۴ بایت شامل ۸ بایت نانس کلاینت + ۱۶ بایت یوزر آیدی
-	// اگر در types.go نانس را ۸ بایت کرده باشید، clientHS.Nonce[:] دقیقاً ۸ بایت خواهد بود
 	salt := make([]byte, 0, 24)
 	salt = append(salt, clientHS.Nonce[:]...)
 	salt = append(salt, clientHS.UserID[:]...)
@@ -186,19 +149,15 @@ func (h *Handler) processHandshake(reader *bufio.Reader, conn stat.Connection, d
 		return err
 	}
 
-	// لاگ دیباگ برای مقایسه با کلاینت (اولین بایت‌های کلید باید یکی باشند)
 	fmt.Printf("DEBUG (Server): SessionKey (first 4 bytes): %x\n", sessionKey[:4])
 	fmt.Printf("DEBUG (Server): Salt used (%d bytes): %x\n", len(salt), salt)
 
-	// ۵. آماده‌سازی و رمزنگاری Policy Grant (مرحله ۵ پیشرفته)
-	policyData := []byte("access:granted") // دیتای پالیسی (می‌تواند از فایل کانفیگ بیاید)
+	policyData := []byte("access:granted")
 	encryptedPolicy, err := h.encryptPolicyGrant(policyData, sessionKey)
 	if err != nil {
 		return err
 	}
 
-	// ۶. ارسال پاسخ نهایی به کلاینت (فرمت باینری دقیق)
-	// فرمت: [32B ServerPubKey] + [2B PolicyLen] + [EncryptedPolicy]
 	response := make([]byte, 32+2+len(encryptedPolicy))
 	copy(response[0:32], serverPublicKey[:])
 	binary.BigEndian.PutUint16(response[32:34], uint16(len(encryptedPolicy)))
@@ -208,8 +167,6 @@ func (h *Handler) processHandshake(reader *bufio.Reader, conn stat.Connection, d
 		return err
 	}
 
-	// ۷. ورود به مرحله تبادل دیتای رمز شده (Step 3: Encryption & Framing)
-	// اینجا سرور آماده می‌شود تا ترافیک کاربر را رمزگشایی و هدایت کند
 	return h.handleSession(ctx, reader, conn, dispatcher, sessionKey, user)
 }
 
@@ -218,35 +175,28 @@ func (h *Handler) encryptPolicyGrant(data []byte, key []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	// نانس صفر برای اولین بسته رمزنگاری شده در کل کانکشن
 	nonce := make([]byte, aead.NonceSize())
 	return aead.Seal(nil, nonce, data, nil), nil
 }
 
 func (h *Handler) handleSession(ctx context.Context, reader *bufio.Reader, conn stat.Connection, dispatcher routing.Dispatcher, key []byte, user *protocol.MemoryUser) error {
-
-	// ۱. استخراج کلیدهای جهت‌دار از SessionKey
 	c2sKey, s2cKey, err := reflex.DeriveDirectionalKeys(key)
 	if err != nil {
 		return err
 	}
 
-	// ۲. ساخت Cipher های مجزا (دقت کنید در سرور نقش‌ها برعکس کلاینت است)
-	// سرور دیتایی که کلاینت فرستاده را با c2s باز می‌کند
 	readAEAD, err := reflex.NewCipher(c2sKey)
 	if err != nil {
 		return err
 	}
 
-	// سرور پاسخ خود را با کلید s2c برای کلاینت رمز می‌کند
 	writeAEAD, err := reflex.NewCipher(s2cKey)
 	if err != nil {
 		return err
 	}
 
-	inNonce := make([]byte, readAEAD.NonceSize()) // نانس صفر خواندن سرور (برای باز کردن آدرس)
+	inNonce := make([]byte, readAEAD.NonceSize())
 
-	// ۳. دریافت و رمزگشایی آدرس مقصد
 	header := make([]byte, 2)
 	if _, err := io.ReadFull(reader, header); err != nil {
 		return err
@@ -260,25 +210,21 @@ func (h *Handler) handleSession(ctx context.Context, reader *bufio.Reader, conn 
 
 	decryptedAddr, err := readAEAD.Open(nil, inNonce, encryptedAddr, nil)
 
-	// اگر آدرس باز نشد یا خالی بود، فورا کانکشن را ببند و نگذار به Dispatcher برسد
 	if err != nil || len(decryptedAddr) == 0 {
 		return errors.New("security block: failed to decrypt target address, dropping connection to prevent panic")
 	}
 
-	// ۴. پارس کردن آدرس و اتصال به مقصد واقعی
 	target, err := net.ParseDestination(string(decryptedAddr))
 	if err != nil {
 		return fmt.Errorf("invalid target address received: %w", err)
 	}
 
-	// اگر آدرس فاقد پروتکل tcp/udp باشد، IsValid مقدار false برمی‌گرداند
 	if !target.IsValid() {
 		return fmt.Errorf("security block: parsed destination is invalid (unknown network): %s", target.String())
 	}
 
 	fmt.Printf("DEBUG (Server): Forwarding traffic to: %s\n", target.String())
 
-	// آماده‌سازی برای تبادل دیتا (افزایش نانس خواندن به ۱)
 	h.increment(inNonce)
 
 	sessionCtx, cancel := context.WithCancel(ctx)
@@ -289,12 +235,10 @@ func (h *Handler) handleSession(ctx context.Context, reader *bufio.Reader, conn 
 		return err
 	}
 
-	// نانس نوشتن سرور (از صفر شروع می‌شود برای اولین دیتای دانلود)
 	outNonce := make([]byte, writeAEAD.NonceSize())
 
 	errs := make(chan error, 2)
 
-	// ۵. شروع مسیرهای تبادل دیتا با سایفرهای مجزا
 	go func() {
 		errs <- h.readDecrypt(reader, link.Writer, readAEAD, inNonce)
 	}()
@@ -306,7 +250,6 @@ func (h *Handler) handleSession(ctx context.Context, reader *bufio.Reader, conn 
 	return <-errs
 }
 
-// این دو تابع دقیقاً مشابه کدهای تو هستند، با کمی تغییر برای Inbound
 func (h *Handler) encryptWrite(reader buf.Reader, writer io.Writer, aead cipher.AEAD, nonce []byte) error {
 	for {
 		multiBuffer, err := reader.ReadMultiBuffer()
@@ -357,18 +300,15 @@ func (h *Handler) increment(b []byte) {
 }
 
 func (h *Handler) handleFallback(ctx context.Context, reader *bufio.Reader, conn stat.Connection) error {
-	// اگر فال‌بک کانفیگ نشده بود، اتصال را ببند
 	if h.fallback == nil || h.fallback.Dest == 0 {
 		return errors.New("no fallback configured")
 	}
 
-	// ساخت Wrapper برای اینکه بایت‌های Peek شده از بین نروند
 	wrappedConn := &preloadedConn{
 		Reader:     reader,
 		Connection: conn,
 	}
 
-	// اتصال به وب‌سرور محلی (مثلا Nginx روی پورت 80 یا 443)
 	targetAddr := fmt.Sprintf("127.0.0.1:%d", h.fallback.Dest)
 	target, err := net.Dial("tcp", targetAddr)
 	if err != nil {
@@ -376,7 +316,6 @@ func (h *Handler) handleFallback(ctx context.Context, reader *bufio.Reader, conn
 	}
 	defer target.Close()
 
-	// کپی کردن دوطرفه داده‌ها بین کلاینت و وب‌سرور
 	errs := make(chan error, 2)
 	go func() {
 		_, err := io.Copy(target, wrappedConn)
@@ -387,23 +326,19 @@ func (h *Handler) handleFallback(ctx context.Context, reader *bufio.Reader, conn
 		errs <- err
 	}()
 
-	<-errs // منتظر ماندن تا یکی از اتصالات بسته شود
+	<-errs
 	return nil
 }
 
-// preloadedConn باعث می‌شود بایت‌هایی که bufio.Reader خوانده (Peek کرده)
-// قبل از بایت‌های اصلی کانکشن به وب‌سرور فرستاده شوند.
 type preloadedConn struct {
 	*bufio.Reader
 	stat.Connection
 }
 
-// Read را اورراید می‌کنیم تا از Reader بخواند
 func (pc *preloadedConn) Read(b []byte) (int, error) {
 	return pc.Reader.Read(b)
 }
 
-// Write را دست نمی‌زنیم تا مستقیم روی Connection بنویسد
 func (pc *preloadedConn) Write(b []byte) (int, error) {
 	return pc.Connection.Write(b)
 }
@@ -438,7 +373,6 @@ func New(ctx context.Context, config *reflex.InboundConfig) (proxy.Inbound, erro
 		clients: make([]*protocol.MemoryUser, 0),
 	}
 
-	// تبدیل config به handler
 	for _, client := range config.Clients {
 		handler.clients = append(handler.clients, &protocol.MemoryUser{
 			Email:   client.Id,
@@ -446,7 +380,6 @@ func New(ctx context.Context, config *reflex.InboundConfig) (proxy.Inbound, erro
 		})
 	}
 
-	// تنظیم fallback اگر وجود داشته باشه
 	if config.Fallback != nil {
 		handler.fallback = &FallbackConfig{
 			Dest: config.Fallback.Dest,

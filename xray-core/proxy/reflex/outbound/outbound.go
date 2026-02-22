@@ -12,7 +12,7 @@ import (
 
 	"github.com/xtls/xray-core/common"
 	"github.com/xtls/xray-core/common/buf"
-	"github.com/xtls/xray-core/common/net" // این باید حتماً پکیج Xray باشد
+	"github.com/xtls/xray-core/common/net"
 	"github.com/xtls/xray-core/common/session"
 	"github.com/xtls/xray-core/common/uuid"
 	"github.com/xtls/xray-core/proxy/reflex"
@@ -27,7 +27,6 @@ type Handler struct {
 }
 
 func (h *Handler) Process(ctx context.Context, link *transport.Link, dialer internet.Dialer) error {
-	// ۱. اتصال به سرور
 	destination := net.TCPDestination(net.ParseAddress(h.serverAddress), h.serverPort)
 	conn, err := dialer.Dial(ctx, destination)
 	if err != nil {
@@ -35,32 +34,26 @@ func (h *Handler) Process(ctx context.Context, link *transport.Link, dialer inte
 	}
 	defer conn.Close()
 
-	// ۲. انجام هندشیک و دریافت Session Key
 	sessionKey, err := h.clientHandshake(conn)
 	if err != nil {
 		return fmt.Errorf("reflex handshake failed: %w", err)
 	}
 
-	// ۳. استخراج کلیدهای جهت‌دار برای استپ ۳
 	c2sKey, s2cKey, err := reflex.DeriveDirectionalKeys(sessionKey)
 	if err != nil {
 		return fmt.Errorf("failed to derive directional keys: %w", err)
 	}
 
-	// ۴. ساخت Cipher های مجزا
-	// کلاینت دیتای خود را با کلید c2s (آپلود) رمز می‌کند
 	writeAEAD, err := reflex.NewCipher(c2sKey)
 	if err != nil {
 		return fmt.Errorf("failed to create write cipher: %w", err)
 	}
 
-	// کلاینت پاسخ سرور را با کلید s2c (دانلود) باز می‌کند
 	readAEAD, err := reflex.NewCipher(s2cKey)
 	if err != nil {
 		return fmt.Errorf("failed to create read cipher: %w", err)
 	}
 
-	// پیدا کردن آدرس مقصد
 	outbounds := session.OutboundsFromContext(ctx)
 	if len(outbounds) == 0 || !outbounds[0].Target.IsValid() {
 		return errors.New("failed to determine target destination")
@@ -68,7 +61,6 @@ func (h *Handler) Process(ctx context.Context, link *transport.Link, dialer inte
 
 	targetStr := outbounds[0].Target.String()
 
-	// ۵. رمزنگاری و ارسال آدرس مقصد
 	outNonce := make([]byte, writeAEAD.NonceSize())
 	encryptedAddr := writeAEAD.Seal(nil, outNonce, []byte(targetStr), nil)
 
@@ -81,13 +73,9 @@ func (h *Handler) Process(ctx context.Context, link *transport.Link, dialer inte
 		return err
 	}
 
-	// افزایش نانس نوشتن برای دیتای بعدی
 	h.increment(outNonce)
 
-	// آماده‌سازی نانس خواندن (صفر است چون هنوز چیزی از سرور نخوانده‌ایم)
 	inNonce := make([]byte, readAEAD.NonceSize())
-
-	// ۶. مدیریت مسیرهای آپلود و دانلود با سایفرهای جداگانه
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	errs := make(chan error, 2)
@@ -193,31 +181,25 @@ func (h *Handler) clientHandshake(conn net.Conn) ([]byte, error) {
 	}
 	uid := [16]byte(parsedUUID)
 
-	// ۱. آماده‌سازی پکت (۴ بایت مجیک + ۶۴ بایت دیتای هندشیک)
-	// کل حجم پکت ارسالی: ۶۸ بایت
 	fullPayload := make([]byte, 4+64)
 	binary.BigEndian.PutUint32(fullPayload[:4], reflex.ReflexMagic)
 
-	// کپی کردن فیلدها با آفست‌های دقیق
-	copy(fullPayload[4:36], pubKey[:]) // ۳۲ بایت کلید عمومی
-	copy(fullPayload[36:52], uid[:])   // ۱۶ بایت UUID
+	copy(fullPayload[4:36], pubKey[:])
+	copy(fullPayload[36:52], uid[:])
 
 	timestamp := time.Now().Unix()
-	binary.BigEndian.PutUint64(fullPayload[52:60], uint64(timestamp)) // ۸ بایت زمان
+	binary.BigEndian.PutUint64(fullPayload[52:60], uint64(timestamp))
 
-	// تولید نانس ۸ بایتی (حتماً ۸ بایت باشد)
 	nonce := make([]byte, 8)
 	if _, err := rand.Read(nonce); err != nil {
 		return nil, err
 	}
-	copy(fullPayload[60:68], nonce) // ۸ بایت نانس
+	copy(fullPayload[60:68], nonce)
 
-	// ۲. ارسال پکت به سرور
 	if _, err := conn.Write(fullPayload); err != nil {
 		return nil, err
 	}
 
-	// ۳. دریافت پاسخ سرور (۳۲ بایت کلید عمومی سرور)
 	respPubKey := make([]byte, 32)
 	if _, err := io.ReadFull(conn, respPubKey); err != nil {
 		return nil, err
@@ -225,10 +207,8 @@ func (h *Handler) clientHandshake(conn net.Conn) ([]byte, error) {
 	var sPubKey [32]byte
 	copy(sPubKey[:], respPubKey)
 
-	// ۴. استخراج کلید مشترک و کلید نشست (Session Key)
 	shared := reflex.DeriveSharedKey(privKey, sPubKey)
 
-	// محاسبه سالت: دقیقاً ۲۴ بایت (۸ بایت نانس + ۱۶ بایت یوزر آیدی)
 	salt := make([]byte, 0, 24)
 	salt = append(salt, nonce...)
 	salt = append(salt, uid[:]...)
@@ -238,30 +218,25 @@ func (h *Handler) clientHandshake(conn net.Conn) ([]byte, error) {
 		return nil, err
 	}
 
-	// چاپ دیباگ برای مقایسه با سرور (این بخش را بعد از تست پاک کن)
 	fmt.Printf("DEBUG: SessionKey (first 4 bytes): %x\n", sessionKey[:4])
 	fmt.Printf("DEBUG: Salt used (%d bytes): %x\n", len(salt), salt)
 
-	// ۵. دریافت Policy Grant (بخش رمزنگاری شده)
-	// الف) خواندن ۲ بایت طول
 	policyLenBuf := make([]byte, 2)
 	if _, err := io.ReadFull(conn, policyLenBuf); err != nil {
 		return nil, fmt.Errorf("failed to read policy length: %w", err)
 	}
 	policyLen := binary.BigEndian.Uint16(policyLenBuf)
 
-	// ب) خواندن دیتای رمز شده
 	encryptedPolicy := make([]byte, policyLen)
 	if _, err := io.ReadFull(conn, encryptedPolicy); err != nil {
 		return nil, fmt.Errorf("failed to read encrypted policy: %w", err)
 	}
 
-	// ج) باز کردن رمز پالیسی با نانس صفر
 	policyAead, err := reflex.NewCipher(sessionKey)
 	if err != nil {
 		return nil, err
 	}
-	pNonce := make([]byte, policyAead.NonceSize()) // نانس تماماً صفر
+	pNonce := make([]byte, policyAead.NonceSize())
 
 	decryptedPolicy, err := policyAead.Open(nil, pNonce, encryptedPolicy, nil)
 	if err != nil {
