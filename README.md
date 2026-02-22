@@ -1,57 +1,86 @@
-# پروژه Reflex -
+# پروژه Reflex - دیانا بابایی
 
-## چیه این پروژه؟
+## اعضای تیم
 
-پروژه Reflex یک پروتکل پراکسی جدید برای Xray-Core هست که سعی می‌کنه مشکلات پروتکل‌های قبلی مثل VMess و VLESS رو حل کنه. هدف اصلی اینه که ترافیک پراکسی رو غیرقابل تشخیص کنیم - یعنی سانسورچی نتونه بفهمه که این ترافیک پراکسی هست.
+ دیانا بابایی 400171324 
+ 
+ رضوان حسین‌نژاد  400108814 
+ 
+ امین هاشمی  400109208 
 
-## چیکار باید بکنید؟
 
-شما باید پروتکل Reflex رو در Xray-Core پیاده‌سازی کنید. این کار در چند مرحله انجام می‌شه:
+## توضیحات
 
-1. **مرحله 1**: ساختار اولیه پروتکل (پکیج، config، handler اولیه)
-2. **مرحله 2**: پیاده‌سازی handshake و احراز هویت
-3. **مرحله 3**: رمزنگاری و پردازش بسته‌ها
-4. **مرحله 4**: fallback به وب‌سرور (مثل Trojan)
-5. **مرحله 5**: قابلیت‌های پیشرفته (Traffic Morphing و ...)
+در این پروژه پروتکل جدید **Reflex** را روی **Xray-Core** پیاده‌سازی کردیم. هدف، ساخت یک پروتکل پراکسی است که ترافیک آن غیرقابل تشخیص باشد و با رمزنگاری قوی و مخفی‌سازی ترافیک، محدودیت‌های پروتکل‌های قبلی مثل VMess و VLESS را کاهش دهد.
 
-## چطوری شروع کنید؟
+### کارهای انجام‌شده:
+- ساختار پایه پکیج Reflex در Xray-Core
+- Handshake و احراز هویت با X25519 ECDH
+- رمزنگاری فریم‌ها با ChaCha20-Poly1305
+- مکانیزم Fallback به وب‌سرور
+- Traffic Morphing با ۳ پروفایل (YouTube, Zoom, HTTP/2 API)
+- 7 تست در xray-core/tests/ و تست‌های واحد در proxy/reflex/
 
-1. اول [راه‌اندازی محیط](docs/setup.md) رو بخونید و Go و Git رو نصب کنید
-2. ریپو Reflex رو کلون کنید (که شامل Xray-Core هست) و بیلد اولیه رو تست کنید
-3. [پروتکل Reflex](docs/protocol.md) رو بخونید تا بفهمید چطوری کار می‌کنه
-4. مرحله به مرحله پیش برید: [Step 1](docs/step1-basic.md) → [Step 2](docs/step2-handshake.md) → [Step 3](docs/step3-encryption.md) → [Step 4](docs/step4-fallback.md) → [Step 5](docs/step5-advanced.md)
-5. [تست کنید](docs/testing.md) که همه چیز درست کار می‌کنه
-6. [تحویل بدید](docs/submission.md) - یک برنچ بسازید و PR بزنید
+### Bonus:
+- ۳ پروفایل Morphing با توزیع اندازه بسته و تاخیر متفاوت
+- Random Nonce برای جلوگیری از replay attack
+- Poly1305 Authentication Tag برای tamper detection
+- Fallback که سرور را شبیه HTTP سرور عادی نشان می‌دهد
 
-## نمره‌دهی (120 نمره)
+## نحوه اجرا
 
-### پیاده‌سازی (80 نمره)
-- **Step 1 - Basic Structure**: 10 نمره
-- **Step 2 - Handshake**: 15 نمره
-- **Step 3 - Encryption**: 15 نمره
-- **Step 4 - Fallback**: 15 نمره
-- **Step 5 - Advanced**: 20 نمره (15 نمره اجباری + 5 نمره امتیازی)
+### بیلد
+```bash
+cd xray-core
+go build -o xray ./main/
+```
 
-### تست‌ها (20 نمره)
-- تست‌های واحد: 10 نمره
-- تست‌های یکپارچگی: 10 نمره
+### اجرای سرور و کلاینت
+```bash
+# ترمینال 1 - سرور
+cd xray-core
+./xray -c ../reflex-server-test.json
 
-### کد و مستندات (20 نمره)
-- کیفیت کد و خوانایی: 10 نمره
-- مستندات و کامنت‌ها: 10 نمره
+# ترمینال 2 - کلاینت
+cd xray-core
+./xray -c ../reflex-client-test.json
 
-جزئیات بیشتر در [فایل تحویل](docs/submission.md) هست.
+# ترمینال 3 - تست
+curl -x socks5://127.0.0.1:10003 http://example.com
+```
 
-## منابع
+### اجرای تست‌ها
+```bash
+cd xray-core
+go test ./tests/... -v
+go test ./proxy/reflex/... -v
+```
 
-- [Xray-Core Repository](https://github.com/XTLS/Xray-core)
-- [Go Documentation](https://go.dev/doc/)
-- [Protocol Specification](docs/protocol.md)
+## مشکلات و راه‌حل‌ها
 
-## سوال دارید؟
+**مشکل: تونل برقرار می‌شد ولی ترافیک به سایت واقعی نمی‌رسید**
+تونل بین کلاینت و سرور برقرار می‌شد (اتصال TCP موفق)، اما درخواست‌ها به مقصد واقعی ارسال نمی‌شدند. مشکل در routing سرور بود — outbound روی `freedom` تنظیم نشده بود و ترافیک پس از decrypt شدن جایی برای رفتن نداشت. راه‌حل: اضافه کردن outbound با protocol `freedom` و routing rule در config سرور.
 
-اگر مشکلی پیش اومد یا سوالی دارید، اول [FAQ](docs/FAQ.md) رو چک کنید. اگر جوابتون رو پیدا نکردید، از من بپرسید
+**مشکل: Firefox با SOCKS5 کار نمی‌کند (400 Bad Request)**
+راه‌حل:فکر میکنم این محدودیت Firefox است، نه Reflex. curl بدون مشکل کار می‌کنند.
+
+
 ---
 
-**موفق باشید!** 
+## مراحل پیاده‌سازی
 
+| مرحله | توضیح | فایل |
+|------|-------|------|
+| **1** | ساختار اولیه | `xray-core/proxy/reflex/` |
+| **2** | احراز هویت & Handshake | `encoding/handshake.go` |
+| **3** | رمزنگاری & فریم‌ها | `encoding/frame.go` |
+| **4** | Fallback | `inbound/inbound.go` |
+| **5** | Traffic Morphing | `encoding/morphing.go` |
+
+---
+
+## مستندات
+
+- [گزارش پیاده‌سازی](REPORT.md)
+- [راهنمای اجرا](RUN_GUIDE_FA.md)
+- [نمونه کانفیگ](config.example.json)

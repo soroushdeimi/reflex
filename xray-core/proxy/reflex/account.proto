@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package xray.proxy.reflex;
+option csharp_namespace = "Xray.Proxy.Reflex";
+option go_package = "github.com/xtls/xray-core/proxy/reflex";
+option java_package = "com.xray.proxy.reflex";
+option java_multiple_files = true;
+
+message Account {
+  // ID of the account, in the form of a UUID, e.g., "66ad4540-b58c-4ad2-9926-ea63445a9b57".
+  string id = 1;
+  // Policy for traffic morphing (e.g., "mimic-http2-api", "mimic-youtube")
+  string policy = 2;
+}

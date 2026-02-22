@@ -1,0 +1,57 @@
+{
+  "log": {
+    "loglevel": "debug",
+    "access": "reflex-client-test-access.log",
+    "error": "reflex-client-test-error.log"
+  },
+  "inbounds": [
+    {
+      "port": 10003,
+      "protocol": "socks",
+      "tag": "socks-in",
+      "settings": {
+        "udp": false,
+        "auth": "noauth"
+      }
+    },
+    {
+      "port": 8888,
+      "protocol": "http",
+      "tag": "http-in",
+      "settings": {}
+    }
+  ],
+  "outbounds": [
+    {
+      "protocol": "reflex",
+      "tag": "reflex-out",
+      "settings": {
+        "vnext": [
+          {
+            "address": "127.0.0.1",
+            "port": 8557,
+            "user": {
+              "id": "b831381d-6324-4d53-ad4f-8cda48b30811",
+              "level": 1,
+              "email": "test@example.com",
+              "account": {
+                "type": "xray.proxy.reflex.Account",
+                "id": "b831381d-6324-4d53-ad4f-8cda48b30811",
+                "policy": "mimic-http2-api"
+              }
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "routing": {
+    "rules": [
+      {
+        "type": "field",
+        "outboundTag": "reflex-out",
+        "ip": ["0.0.0.0/0"]
+      }
+    ]
+  }
+}

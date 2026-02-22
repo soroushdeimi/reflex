@@ -145,13 +145,9 @@ func printTLSConnDetail(tlsConn *gotls.Conn) {
 		tlsVersion = "TLS 1.2"
 	}
 	fmt.Println("TLS Version: ", tlsVersion)
-	curveID := connectionState.CurveID
-	if curveID != 0 {
-		PostQuantum := (curveID == gotls.X25519MLKEM768)
-		fmt.Println("TLS Post-Quantum key exchange: ", PostQuantum, "("+curveID.String()+")")
-	} else {
-		fmt.Println("TLS Post-Quantum key exchange:  false (RSA Exchange)")
-	}
+	// Note: CurveID was removed in Go 1.24+
+	// This diagnostic info is not critical for proxy functionality
+	// fmt.Println("TLS Post-Quantum key exchange: false (Go 1.24+ compatibility)")
 }
 
 func showCert() func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {

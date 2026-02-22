@@ -1,0 +1,46 @@
+{
+  "log": {
+    "loglevel": "debug",
+    "access": "reflex-server-test-access.log",
+    "error": "reflex-server-test-error.log"
+  },
+  "inbounds": [
+    {
+      "port": 8557,
+      "protocol": "reflex",
+      "tag": "reflex-in",
+      "settings": {
+        "clients": [
+          {
+            "id": "b831381d-6324-4d53-ad4f-8cda48b30811",
+            "level": 1,
+            "email": "test@example.com",
+            "account": {
+              "type": "xray.proxy.reflex.Account",
+              "id": "b831381d-6324-4d53-ad4f-8cda48b30811",
+              "policy": "mimic-http2-api"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "outbounds": [
+    {
+      "protocol": "freedom",
+      "tag": "direct",
+      "settings": {
+        "domainStrategy": "UseIP"
+      }
+    }
+  ],
+  "routing": {
+    "rules": [
+      {
+        "type": "field",
+        "inboundTag": ["reflex-in"],
+        "outboundTag": "direct"
+      }
+    ]
+  }
+}
