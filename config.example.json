@@ -1,0 +1,35 @@
+{
+  "inbounds": [
+    {
+      "port": 8443,
+      "protocol": "reflex",
+      "settings": {
+        "clients": [
+          {
+            "id": "550e8400-e29b-41d4-a716-446655440000",
+            "policy": "youtube"
+          }
+        ],
+        "fallback": {
+          "dest": "127.0.0.1:80",
+          "alpn": "h2"
+        }
+      }
+    }
+  ],
+  "outbounds": [
+    {
+      "protocol": "reflex",
+      "settings": {
+        "address": "server.example.com",
+        "port": 8443,
+        "id": "550e8400-e29b-41d4-a716-446655440000",
+        "policy": "youtube"
+      }
+    },
+    {
+      "protocol": "freedom",
+      "tag": "direct"
+    }
+  ]
+}

@@ -3,8 +3,8 @@ package routing
 import (
 	"context"
 
+	"github.com/xtls/xray-core/common"
 	"github.com/xtls/xray-core/common/net"
-	"github.com/xtls/xray-core/features"
 	"github.com/xtls/xray-core/transport"
 )
 
@@ -13,7 +13,7 @@ import (
 //
 // xray:api:stable
 type Dispatcher interface {
-	features.Feature
+	common.HasType
 
 	// Dispatch returns a Ray for transporting data for the given request.
 	Dispatch(ctx context.Context, dest net.Destination) (*transport.Link, error)
