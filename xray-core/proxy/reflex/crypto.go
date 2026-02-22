@@ -28,6 +28,8 @@ func DeriveSharedKey(privateKey, peerPublicKey [32]byte) [32]byte {
 	return shared
 }
 
+// DeriveSessionKey uses HKDF-SHA256 to generate a 32-byte session key.
+// The salt consists of the client's nonce and UserID to ensure uniqueness.
 func DeriveSessionKey(sharedKey [32]byte, salt []byte) ([]byte, error) {
 	hash := sha256.New
 	kdf := hkdf.New(hash, sharedKey[:], salt, []byte("reflex-session"))
@@ -42,6 +44,7 @@ func NewCipher(key []byte) (cipher.AEAD, error) {
 	return chacha20poly1305.New(key)
 }
 
+// Generates two independent 32-byte keys for bidirectional AEAD encryption to ensure traffic isolation.
 func DeriveDirectionalKeys(sessionKey []byte) (c2sKey []byte, s2cKey []byte, err error) {
 	c2sKey = make([]byte, 32)
 	s2cKey = make([]byte, 32)

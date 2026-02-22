@@ -101,7 +101,10 @@ func (h *Handler) Process(ctx context.Context, link *transport.Link, dialer inte
 	return nil
 }
 
+// Every frame starts with a 3-byte header: [Length (2B)][Type (1B)].
+// Type 0x01 indicates standard data payload.
 func (h *Handler) encryptWrite(reader buf.Reader, writer io.Writer, aead cipher.AEAD, nonce []byte) error {
+	// Encapsulates raw data into Reflex frames with a 3-byte header for standardized streaming.
 	for {
 		b, err := reader.ReadMultiBuffer()
 		if err != nil {
@@ -114,7 +117,20 @@ func (h *Handler) encryptWrite(reader buf.Reader, writer io.Writer, aead cipher.
 			}
 
 			rawPayload := buffer.Bytes()
-			encrypted := aead.Seal(nil, nonce, rawPayload, nil)
+
+			targetSize := reflex.AparatProfile.GetRandomTargetSize()
+
+			paddedPayload := make([]byte, 2)
+			binary.BigEndian.PutUint16(paddedPayload[:2], uint16(len(rawPayload)))
+			paddedPayload = append(paddedPayload, rawPayload...)
+
+			if len(paddedPayload) < targetSize {
+				padding := make([]byte, targetSize-len(paddedPayload))
+				rand.Read(padding)
+				paddedPayload = append(paddedPayload, padding...)
+			}
+
+			encrypted := aead.Seal(nil, nonce, paddedPayload, nil)
 
 			frameHeader := make([]byte, 3)
 			binary.BigEndian.PutUint16(frameHeader[:2], uint16(len(encrypted)))
@@ -171,6 +187,8 @@ func (h *Handler) readDecrypt(reader io.Reader, writer buf.Writer, aead cipher.A
 	}
 }
 
+// clientHandshake implements the Implicit Handshake by wrapping X25519
+// public keys and UserID within a fake HTTP POST request for stealth.
 func (h *Handler) clientHandshake(conn net.Conn) ([]byte, error) {
 	privKey, pubKey, err := reflex.GenerateKeyPair()
 	if err != nil {

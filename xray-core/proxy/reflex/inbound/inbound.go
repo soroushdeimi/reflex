@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"crypto/cipher"
+	"crypto/rand"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -58,9 +59,12 @@ func (h *Handler) Network() []net.Network {
 	return []net.Network{net.Network_TCP}
 }
 
+// Process uses bufio.Peek to detect the protocol without consuming bytes.
+// If the magic number or HTTP patterns don't match, it falls back to a web server.
 func (h *Handler) Process(ctx context.Context, network net.Network, conn stat.Connection, dispatcher routing.Dispatcher) error {
 	reader := bufio.NewReader(conn)
 
+	// Protocol Sniffing: Peeks at initial bytes to distinguish between Reflex handshake and regular HTTP probes.
 	peeked, err := reader.Peek(ReflexMinHandshakeSize)
 	if err != nil {
 		return err
@@ -271,12 +275,45 @@ func (h *Handler) encryptWrite(reader buf.Reader, writer io.Writer, aead cipher.
 		if err != nil {
 			return err
 		}
+
 		for _, buffer := range multiBuffer {
-			encrypted := aead.Seal(nil, nonce, buffer.Bytes(), nil)
-			header := make([]byte, 2)
-			binary.BigEndian.PutUint16(header, uint16(len(encrypted)))
-			writer.Write(header)
-			writer.Write(encrypted)
+			if buffer.IsEmpty() {
+				continue
+			}
+			rawPayload := buffer.Bytes()
+
+			targetSize := reflex.AparatProfile.GetRandomTargetSize()
+
+			minRequired := 2 + len(rawPayload)
+			if minRequired > targetSize {
+				targetSize = minRequired
+			}
+
+			paddedPayload := make([]byte, targetSize)
+
+			binary.BigEndian.PutUint16(paddedPayload[:2], uint16(len(rawPayload)))
+
+			copy(paddedPayload[2:], rawPayload)
+
+			if targetSize > minRequired {
+				if _, err := rand.Read(paddedPayload[minRequired:]); err != nil {
+					return err
+				}
+			}
+
+			encrypted := aead.Seal(nil, nonce, paddedPayload, nil)
+
+			header := make([]byte, 3)
+			binary.BigEndian.PutUint16(header[:2], uint16(len(encrypted)))
+			header[2] = reflex.FrameTypeData
+
+			if _, err := writer.Write(header); err != nil {
+				return err
+			}
+			if _, err := writer.Write(encrypted); err != nil {
+				return err
+			}
+
 			h.increment(nonce)
 			buffer.Release()
 		}
@@ -300,13 +337,27 @@ func (h *Handler) readDecrypt(reader io.Reader, writer buf.Writer, aead cipher.A
 		if _, err := io.ReadFull(reader, payload); err != nil {
 			return err
 		}
+
 		decrypted, err := aead.Open(nil, nonce, payload, nil)
 		if err != nil {
 			return err
 		}
-		b := buf.New()
-		b.Write(decrypted)
-		writer.WriteMultiBuffer(buf.MultiBuffer{b})
+
+		if fType == reflex.FrameTypeData {
+			if len(decrypted) < 2 {
+				return errors.New("invalid frame size")
+			}
+
+			realDataLen := binary.BigEndian.Uint16(decrypted[:2]) // خواندن طول واقعی دیتا
+			if int(realDataLen) > len(decrypted)-2 {
+				return errors.New("malformed frame: length mismatch")
+			}
+
+			b := buf.New()
+			b.Write(decrypted[2 : 2+realDataLen])
+			writer.WriteMultiBuffer(buf.MultiBuffer{b})
+		}
+
 		h.increment(nonce)
 	}
 }
