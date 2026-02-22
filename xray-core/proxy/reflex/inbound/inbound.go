@@ -269,12 +269,18 @@ func (h *Handler) encryptWrite(reader buf.Reader, writer io.Writer, aead cipher.
 }
 
 func (h *Handler) readDecrypt(reader io.Reader, writer buf.Writer, aead cipher.AEAD, nonce []byte) error {
-	header := make([]byte, 2)
+	header := make([]byte, 3)
 	for {
 		if _, err := io.ReadFull(reader, header); err != nil {
 			return err
 		}
-		length := binary.BigEndian.Uint16(header)
+		length := binary.BigEndian.Uint16(header[:2])
+		fType := header[2]
+		
+		if fType == reflex.FrameTypeClose {
+			return io.EOF
+		}
+
 		payload := make([]byte, length)
 		if _, err := io.ReadFull(reader, payload); err != nil {
 			return err

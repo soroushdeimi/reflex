@@ -18,3 +18,10 @@ type ServerHandshake struct {
 	PublicKey   [32]byte
 	PolicyGrant []byte
 }
+
+const (
+	FrameTypeData    uint8 = 0x01
+	FrameTypePadding uint8 = 0x02
+	FrameTypeTiming  uint8 = 0x03
+	FrameTypeClose   uint8 = 0x04
+)

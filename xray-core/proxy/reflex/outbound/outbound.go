@@ -115,8 +115,9 @@ func (h *Handler) encryptWrite(reader buf.Reader, writer io.Writer, aead cipher.
 			rawPayload := buffer.Bytes()
 			encrypted := aead.Seal(nil, nonce, rawPayload, nil)
 
-			frameHeader := make([]byte, 2)
-			binary.BigEndian.PutUint16(frameHeader, uint16(len(encrypted)))
+			frameHeader := make([]byte, 3)
+			binary.BigEndian.PutUint16(frameHeader[:2], uint16(len(encrypted)))
+			frameHeader[2] = reflex.FrameTypeData
 
 			if _, err := writer.Write(frameHeader); err != nil {
 				return err
