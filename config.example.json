@@ -1,0 +1,32 @@
+{
+  "inbounds": [
+    {
+      "listen": "0.0.0.0",
+      "port": 443,
+      "protocol": "reflex",
+      "settings": {
+        "clients": [
+          {
+            "id": "11111111-1111-1111-1111-111111111111",
+            "policy": "http2-api"
+          }
+        ],
+        "fallback": {
+          "dest": 80
+        }
+      }
+    }
+  ],
+  "outbounds": [
+    {
+      "protocol": "reflex",
+      "settings": {
+        "address": "example.com",
+        "port": 443,
+        "id": "11111111-1111-1111-1111-111111111111",
+        "policy": "http2-api",
+        "use_http_handshake": true
+      }
+    }
+  ]
+}
