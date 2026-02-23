@@ -1,0 +1,18 @@
+{
+  "inbounds": [{
+    "port": 10080,
+    "protocol": "reflex",
+    "settings": {
+      "clients": [{"id": "29525c56-6556-43f1-8b2b-09b673627038"}],
+      "fallback": {"dest": 80}
+    }
+  }],
+  "outbounds": [{
+    "protocol": "reflex",
+    "settings": {
+      "address": "127.0.0.1",
+      "port": 10080,
+      "id": "29525c56-6556-43f1-8b2b-09b673627038"
+    }
+  }]
+}

@@ -654,7 +654,7 @@ func TestStep4Fallback(t *testing.T) {
 
 	ctx := context.Background()
 	cfg := &reflex.InboundConfig{
-		Clients: []*reflex.User{{Id: "40000000-2000-4000-8000-000000000006", Policy: "default"}},
+		Clients:  []*reflex.User{{Id: "40000000-2000-4000-8000-000000000006", Policy: "default"}},
 		Fallback: &reflex.Fallback{Dest: fallbackPort},
 	}
 	obj, err := common.CreateObject(ctx, cfg)
