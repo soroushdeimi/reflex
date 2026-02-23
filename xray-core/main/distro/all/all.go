@@ -43,6 +43,8 @@ import (
 	_ "github.com/xtls/xray-core/proxy/shadowsocks"
 	_ "github.com/xtls/xray-core/proxy/socks"
 	_ "github.com/xtls/xray-core/proxy/trojan"
+	_ "github.com/xtls/xray-core/proxy/reflex/inbound"
+	_ "github.com/xtls/xray-core/proxy/reflex/outbound"
 	_ "github.com/xtls/xray-core/proxy/vless/inbound"
 	_ "github.com/xtls/xray-core/proxy/vless/outbound"
 	_ "github.com/xtls/xray-core/proxy/reflex/inbound"
