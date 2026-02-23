@@ -1,4 +1,3 @@
-// Package outbound implements the Reflex outbound handler (stub).
 package outbound
 
 import (
@@ -29,7 +28,7 @@ func (h *Handler) Process(ctx context.Context, link *transport.Link, d internet.
 }
 
 // New creates a new Reflex outbound handler.
-func New(ctx context.Context, config *reflex.OutboundConfig) (proxy.OutboundHandler, error) {
+func New(ctx context.Context, config *reflex.OutboundConfig) (proxy.Outbound, error) {
 	_ = ctx
 	_ = config
 	return &Handler{}, nil
