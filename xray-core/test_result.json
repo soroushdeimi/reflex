@@ -1,0 +1,214 @@
+﻿{"Time":"2026-02-23T21:03:47.4714254+03:30","Action":"start","Package":"github.com/xtls/xray-core/proxy/reflex"}
+{"Time":"2026-02-23T21:03:47.4714254+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex","Output":"?   \tgithub.com/xtls/xray-core/proxy/reflex\t[no test files]\n"}
+{"Time":"2026-02-23T21:03:47.4714254+03:30","Action":"skip","Package":"github.com/xtls/xray-core/proxy/reflex","Elapsed":0}
+{"Time":"2026-02-23T21:03:48.4475884+03:30","Action":"start","Package":"github.com/xtls/xray-core/proxy/reflex/crypto"}
+{"Time":"2026-02-23T21:03:48.4475884+03:30","Action":"start","Package":"github.com/xtls/xray-core/proxy/reflex/grading"}
+{"Time":"2026-02-23T21:03:48.4475884+03:30","Action":"start","Package":"github.com/xtls/xray-core/proxy/reflex/inbound"}
+{"Time":"2026-02-23T21:03:48.4475884+03:30","Action":"start","Package":"github.com/xtls/xray-core/proxy/reflex/morph"}
+{"Time":"2026-02-23T21:03:48.4475884+03:30","Action":"start","Package":"github.com/xtls/xray-core/proxy/reflex/outbound"}
+{"Time":"2026-02-23T21:03:48.4475884+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/outbound","Output":"?   \tgithub.com/xtls/xray-core/proxy/reflex/outbound\t[no test files]\n"}
+{"Time":"2026-02-23T21:03:48.4475884+03:30","Action":"skip","Package":"github.com/xtls/xray-core/proxy/reflex/outbound","Elapsed":0}
+{"Time":"2026-02-23T21:03:48.4475884+03:30","Action":"start","Package":"github.com/xtls/xray-core/proxy/reflex/protocol"}
+{"Time":"2026-02-23T21:03:48.4475884+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/protocol","Output":"?   \tgithub.com/xtls/xray-core/proxy/reflex/protocol\t[no test files]\n"}
+{"Time":"2026-02-23T21:03:48.4475884+03:30","Action":"start","Package":"github.com/xtls/xray-core/proxy/reflex/session"}
+{"Time":"2026-02-23T21:03:48.4475884+03:30","Action":"skip","Package":"github.com/xtls/xray-core/proxy/reflex/protocol","Elapsed":0}
+{"Time":"2026-02-23T21:03:48.6470299+03:30","Action":"run","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep1Structure"}
+{"Time":"2026-02-23T21:03:48.6470299+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep1Structure","Output":"=== RUN   TestStep1Structure\n"}
+{"Time":"2026-02-23T21:03:48.6470299+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep1Structure","Output":"--- PASS: TestStep1Structure (0.00s)\n"}
+{"Time":"2026-02-23T21:03:48.6470299+03:30","Action":"pass","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep1Structure","Elapsed":0}
+{"Time":"2026-02-23T21:03:48.6470299+03:30","Action":"run","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep1OutboundCreation"}
+{"Time":"2026-02-23T21:03:48.6470299+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep1OutboundCreation","Output":"=== RUN   TestStep1OutboundCreation\n"}
+{"Time":"2026-02-23T21:03:48.6470299+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep1OutboundCreation","Output":"--- PASS: TestStep1OutboundCreation (0.00s)\n"}
+{"Time":"2026-02-23T21:03:48.6470299+03:30","Action":"pass","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep1OutboundCreation","Elapsed":0}
+{"Time":"2026-02-23T21:03:48.6470299+03:30","Action":"run","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep1BuildAndListen"}
+{"Time":"2026-02-23T21:03:48.6470299+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep1BuildAndListen","Output":"=== RUN   TestStep1BuildAndListen\n"}
+{"Time":"2026-02-23T21:03:48.6476442+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/inbound","Output":"testing: warning: no tests to run\n"}
+{"Time":"2026-02-23T21:03:48.6476442+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/inbound","Output":"PASS\n"}
+{"Time":"2026-02-23T21:03:48.6492243+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep1BuildAndListen","Output":"--- PASS: TestStep1BuildAndListen (0.00s)\n"}
+{"Time":"2026-02-23T21:03:48.6492243+03:30","Action":"pass","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep1BuildAndListen","Elapsed":0}
+{"Time":"2026-02-23T21:03:48.6497516+03:30","Action":"run","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep2HandshakeMagic"}
+{"Time":"2026-02-23T21:03:48.6497516+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep2HandshakeMagic","Output":"=== RUN   TestStep2HandshakeMagic\n"}
+{"Time":"2026-02-23T21:03:48.6532159+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/inbound","Output":"ok  \tgithub.com/xtls/xray-core/proxy/reflex/inbound\t0.206s [no tests to run]\n"}
+{"Time":"2026-02-23T21:03:48.6702884+03:30","Action":"pass","Package":"github.com/xtls/xray-core/proxy/reflex/inbound","Elapsed":0.223}
+{"Time":"2026-02-23T21:03:48.8960329+03:30","Action":"run","Package":"github.com/xtls/xray-core/proxy/reflex/session","Test":"TestSessionEncryption"}
+{"Time":"2026-02-23T21:03:48.8960329+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/session","Test":"TestSessionEncryption","Output":"=== RUN   TestSessionEncryption\n"}
+{"Time":"2026-02-23T21:03:48.8960329+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/session","Test":"TestSessionEncryption","Output":"--- PASS: TestSessionEncryption (0.00s)\n"}
+{"Time":"2026-02-23T21:03:48.8960329+03:30","Action":"pass","Package":"github.com/xtls/xray-core/proxy/reflex/session","Test":"TestSessionEncryption","Elapsed":0}
+{"Time":"2026-02-23T21:03:48.8960329+03:30","Action":"run","Package":"github.com/xtls/xray-core/proxy/reflex/session","Test":"TestEncryption"}
+{"Time":"2026-02-23T21:03:48.8960329+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/session","Test":"TestEncryption","Output":"=== RUN   TestEncryption\n"}
+{"Time":"2026-02-23T21:03:48.8960329+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/session","Test":"TestEncryption","Output":"--- PASS: TestEncryption (0.00s)\n"}
+{"Time":"2026-02-23T21:03:48.8960329+03:30","Action":"pass","Package":"github.com/xtls/xray-core/proxy/reflex/session","Test":"TestEncryption","Elapsed":0}
+{"Time":"2026-02-23T21:03:48.8960329+03:30","Action":"run","Package":"github.com/xtls/xray-core/proxy/reflex/session","Test":"TestFrame"}
+{"Time":"2026-02-23T21:03:48.8960329+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/session","Test":"TestFrame","Output":"=== RUN   TestFrame\n"}
+{"Time":"2026-02-23T21:03:48.8960329+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/session","Test":"TestFrame","Output":"--- PASS: TestFrame (0.00s)\n"}
+{"Time":"2026-02-23T21:03:48.8965879+03:30","Action":"pass","Package":"github.com/xtls/xray-core/proxy/reflex/session","Test":"TestFrame","Elapsed":0}
+{"Time":"2026-02-23T21:03:48.8965879+03:30","Action":"run","Package":"github.com/xtls/xray-core/proxy/reflex/session","Test":"TestReadFrameWriteFrame"}
+{"Time":"2026-02-23T21:03:48.8965879+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/session","Test":"TestReadFrameWriteFrame","Output":"=== RUN   TestReadFrameWriteFrame\n"}
+{"Time":"2026-02-23T21:03:48.8965879+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/session","Test":"TestReadFrameWriteFrame","Output":"--- PASS: TestReadFrameWriteFrame (0.00s)\n"}
+{"Time":"2026-02-23T21:03:48.8965879+03:30","Action":"pass","Package":"github.com/xtls/xray-core/proxy/reflex/session","Test":"TestReadFrameWriteFrame","Elapsed":0}
+{"Time":"2026-02-23T21:03:48.8965879+03:30","Action":"run","Package":"github.com/xtls/xray-core/proxy/reflex/session","Test":"TestReplayProtection"}
+{"Time":"2026-02-23T21:03:48.8965879+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/session","Test":"TestReplayProtection","Output":"=== RUN   TestReplayProtection\n"}
+{"Time":"2026-02-23T21:03:48.8965879+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/session","Test":"TestReplayProtection","Output":"--- PASS: TestReplayProtection (0.00s)\n"}
+{"Time":"2026-02-23T21:03:48.8965879+03:30","Action":"pass","Package":"github.com/xtls/xray-core/proxy/reflex/session","Test":"TestReplayProtection","Elapsed":0}
+{"Time":"2026-02-23T21:03:48.8965879+03:30","Action":"run","Package":"github.com/xtls/xray-core/proxy/reflex/session","Test":"TestChaChaAEAD"}
+{"Time":"2026-02-23T21:03:48.8965879+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/session","Test":"TestChaChaAEAD","Output":"=== RUN   TestChaChaAEAD\n"}
+{"Time":"2026-02-23T21:03:48.8965879+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/session","Test":"TestChaChaAEAD","Output":"--- PASS: TestChaChaAEAD (0.00s)\n"}
+{"Time":"2026-02-23T21:03:48.8965879+03:30","Action":"run","Package":"github.com/xtls/xray-core/proxy/reflex/morph","Test":"TestTrafficProfile"}
+{"Time":"2026-02-23T21:03:48.8965879+03:30","Action":"pass","Package":"github.com/xtls/xray-core/proxy/reflex/session","Test":"TestChaChaAEAD","Elapsed":0}
+{"Time":"2026-02-23T21:03:48.8965879+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/morph","Test":"TestTrafficProfile","Output":"=== RUN   TestTrafficProfile\n"}
+{"Time":"2026-02-23T21:03:48.8965879+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/session","Output":"PASS\n"}
+{"Time":"2026-02-23T21:03:48.8965879+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/morph","Test":"TestTrafficProfile","Output":"--- PASS: TestTrafficProfile (0.00s)\n"}
+{"Time":"2026-02-23T21:03:48.8965879+03:30","Action":"pass","Package":"github.com/xtls/xray-core/proxy/reflex/morph","Test":"TestTrafficProfile","Elapsed":0}
+{"Time":"2026-02-23T21:03:48.8965879+03:30","Action":"run","Package":"github.com/xtls/xray-core/proxy/reflex/morph","Test":"TestGetPacketSize"}
+{"Time":"2026-02-23T21:03:48.8965879+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/morph","Test":"TestGetPacketSize","Output":"=== RUN   TestGetPacketSize\n"}
+{"Time":"2026-02-23T21:03:48.8965879+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/morph","Test":"TestGetPacketSize","Output":"--- PASS: TestGetPacketSize (0.00s)\n"}
+{"Time":"2026-02-23T21:03:48.8965879+03:30","Action":"pass","Package":"github.com/xtls/xray-core/proxy/reflex/morph","Test":"TestGetPacketSize","Elapsed":0}
+{"Time":"2026-02-23T21:03:48.8965879+03:30","Action":"run","Package":"github.com/xtls/xray-core/proxy/reflex/morph","Test":"TestGetDelay"}
+{"Time":"2026-02-23T21:03:48.8965879+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/morph","Test":"TestGetDelay","Output":"=== RUN   TestGetDelay\n"}
+{"Time":"2026-02-23T21:03:48.8965879+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/morph","Test":"TestGetDelay","Output":"--- PASS: TestGetDelay (0.00s)\n"}
+{"Time":"2026-02-23T21:03:48.8965879+03:30","Action":"pass","Package":"github.com/xtls/xray-core/proxy/reflex/morph","Test":"TestGetDelay","Elapsed":0}
+{"Time":"2026-02-23T21:03:48.8965879+03:30","Action":"run","Package":"github.com/xtls/xray-core/proxy/reflex/morph","Test":"TestAddPadding"}
+{"Time":"2026-02-23T21:03:48.8965879+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/morph","Test":"TestAddPadding","Output":"=== RUN   TestAddPadding\n"}
+{"Time":"2026-02-23T21:03:48.8965879+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/morph","Test":"TestAddPadding","Output":"--- PASS: TestAddPadding (0.00s)\n"}
+{"Time":"2026-02-23T21:03:48.8965879+03:30","Action":"pass","Package":"github.com/xtls/xray-core/proxy/reflex/morph","Test":"TestAddPadding","Elapsed":0}
+{"Time":"2026-02-23T21:03:48.8965879+03:30","Action":"run","Package":"github.com/xtls/xray-core/proxy/reflex/morph","Test":"TestPaddingControl"}
+{"Time":"2026-02-23T21:03:48.8965879+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/morph","Test":"TestPaddingControl","Output":"=== RUN   TestPaddingControl\n"}
+{"Time":"2026-02-23T21:03:48.8965879+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/morph","Test":"TestPaddingControl","Output":"--- PASS: TestPaddingControl (0.00s)\n"}
+{"Time":"2026-02-23T21:03:48.8965879+03:30","Action":"pass","Package":"github.com/xtls/xray-core/proxy/reflex/morph","Test":"TestPaddingControl","Elapsed":0}
+{"Time":"2026-02-23T21:03:48.8965879+03:30","Action":"run","Package":"github.com/xtls/xray-core/proxy/reflex/morph","Test":"TestTimingControl"}
+{"Time":"2026-02-23T21:03:48.8965879+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/morph","Test":"TestTimingControl","Output":"=== RUN   TestTimingControl\n"}
+{"Time":"2026-02-23T21:03:48.8965879+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/morph","Test":"TestTimingControl","Output":"--- PASS: TestTimingControl (0.00s)\n"}
+{"Time":"2026-02-23T21:03:48.8965879+03:30","Action":"pass","Package":"github.com/xtls/xray-core/proxy/reflex/morph","Test":"TestTimingControl","Elapsed":0}
+{"Time":"2026-02-23T21:03:48.8965879+03:30","Action":"run","Package":"github.com/xtls/xray-core/proxy/reflex/morph","Test":"TestMorphingPacketSizeRandomization"}
+{"Time":"2026-02-23T21:03:48.8965879+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/morph","Test":"TestMorphingPacketSizeRandomization","Output":"=== RUN   TestMorphingPacketSizeRandomization\n"}
+{"Time":"2026-02-23T21:03:48.8965879+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/morph","Test":"TestMorphingPacketSizeRandomization","Output":"--- PASS: TestMorphingPacketSizeRandomization (0.00s)\n"}
+{"Time":"2026-02-23T21:03:48.8965879+03:30","Action":"pass","Package":"github.com/xtls/xray-core/proxy/reflex/morph","Test":"TestMorphingPacketSizeRandomization","Elapsed":0}
+{"Time":"2026-02-23T21:03:48.8965879+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/morph","Output":"PASS\n"}
+{"Time":"2026-02-23T21:03:48.9008672+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/session","Output":"ok  \tgithub.com/xtls/xray-core/proxy/reflex/session\t0.453s\n"}
+{"Time":"2026-02-23T21:03:48.9008672+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/morph","Output":"ok  \tgithub.com/xtls/xray-core/proxy/reflex/morph\t0.453s\n"}
+{"Time":"2026-02-23T21:03:48.916055+03:30","Action":"pass","Package":"github.com/xtls/xray-core/proxy/reflex/morph","Elapsed":0.468}
+{"Time":"2026-02-23T21:03:48.916055+03:30","Action":"pass","Package":"github.com/xtls/xray-core/proxy/reflex/session","Elapsed":0.468}
+{"Time":"2026-02-23T21:03:49.143368+03:30","Action":"run","Package":"github.com/xtls/xray-core/proxy/reflex/crypto","Test":"TestHandshakeSuccess"}
+{"Time":"2026-02-23T21:03:49.143368+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/crypto","Test":"TestHandshakeSuccess","Output":"=== RUN   TestHandshakeSuccess\n"}
+{"Time":"2026-02-23T21:03:49.1442679+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/crypto","Test":"TestHandshakeSuccess","Output":"--- PASS: TestHandshakeSuccess (0.00s)\n"}
+{"Time":"2026-02-23T21:03:49.1442679+03:30","Action":"pass","Package":"github.com/xtls/xray-core/proxy/reflex/crypto","Test":"TestHandshakeSuccess","Elapsed":0}
+{"Time":"2026-02-23T21:03:49.1442679+03:30","Action":"run","Package":"github.com/xtls/xray-core/proxy/reflex/crypto","Test":"TestInvalidUUID"}
+{"Time":"2026-02-23T21:03:49.1442679+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/crypto","Test":"TestInvalidUUID","Output":"=== RUN   TestInvalidUUID\n"}
+{"Time":"2026-02-23T21:03:49.1508977+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep2HandshakeMagic","Output":"--- PASS: TestStep2HandshakeMagic (0.50s)\n"}
+{"Time":"2026-02-23T21:03:49.1508977+03:30","Action":"pass","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep2HandshakeMagic","Elapsed":0.5}
+{"Time":"2026-02-23T21:03:49.1508977+03:30","Action":"run","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep2AuthWithUUID"}
+{"Time":"2026-02-23T21:03:49.1508977+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep2AuthWithUUID","Output":"=== RUN   TestStep2AuthWithUUID\n"}
+{"Time":"2026-02-23T21:03:49.1519323+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep2AuthWithUUID","Output":"--- PASS: TestStep2AuthWithUUID (0.00s)\n"}
+{"Time":"2026-02-23T21:03:49.1519323+03:30","Action":"pass","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep2AuthWithUUID","Elapsed":0}
+{"Time":"2026-02-23T21:03:49.1519323+03:30","Action":"run","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep2SessionKeyDerive"}
+{"Time":"2026-02-23T21:03:49.1519323+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep2SessionKeyDerive","Output":"=== RUN   TestStep2SessionKeyDerive\n"}
+{"Time":"2026-02-23T21:03:49.1524485+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep2SessionKeyDerive","Output":"--- PASS: TestStep2SessionKeyDerive (0.00s)\n"}
+{"Time":"2026-02-23T21:03:49.1524485+03:30","Action":"pass","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep2SessionKeyDerive","Elapsed":0}
+{"Time":"2026-02-23T21:03:49.1524485+03:30","Action":"run","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep2HandshakeKeyExchange"}
+{"Time":"2026-02-23T21:03:49.1524485+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep2HandshakeKeyExchange","Output":"=== RUN   TestStep2HandshakeKeyExchange\n"}
+{"Time":"2026-02-23T21:03:49.1529662+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep2HandshakeKeyExchange","Output":"--- PASS: TestStep2HandshakeKeyExchange (0.00s)\n"}
+{"Time":"2026-02-23T21:03:49.1529662+03:30","Action":"pass","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep2HandshakeKeyExchange","Elapsed":0}
+{"Time":"2026-02-23T21:03:49.1529662+03:30","Action":"run","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep2HandshakeResponseLength"}
+{"Time":"2026-02-23T21:03:49.1529662+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep2HandshakeResponseLength","Output":"=== RUN   TestStep2HandshakeResponseLength\n"}
+{"Time":"2026-02-23T21:03:49.1534868+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep2HandshakeResponseLength","Output":"--- PASS: TestStep2HandshakeResponseLength (0.00s)\n"}
+{"Time":"2026-02-23T21:03:49.1534868+03:30","Action":"pass","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep2HandshakeResponseLength","Elapsed":0}
+{"Time":"2026-02-23T21:03:49.1534868+03:30","Action":"run","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep3FrameFormat"}
+{"Time":"2026-02-23T21:03:49.1534868+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep3FrameFormat","Output":"=== RUN   TestStep3FrameFormat\n"}
+{"Time":"2026-02-23T21:03:49.6447206+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/crypto","Test":"TestInvalidUUID","Output":"--- PASS: TestInvalidUUID (0.50s)\n"}
+{"Time":"2026-02-23T21:03:49.6447206+03:30","Action":"pass","Package":"github.com/xtls/xray-core/proxy/reflex/crypto","Test":"TestInvalidUUID","Elapsed":0.5}
+{"Time":"2026-02-23T21:03:49.6447206+03:30","Action":"run","Package":"github.com/xtls/xray-core/proxy/reflex/crypto","Test":"TestOldTimestamp"}
+{"Time":"2026-02-23T21:03:49.6447206+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/crypto","Test":"TestOldTimestamp","Output":"=== RUN   TestOldTimestamp\n"}
+{"Time":"2026-02-23T21:03:49.6536386+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep3FrameFormat","Output":"--- PASS: TestStep3FrameFormat (0.50s)\n"}
+{"Time":"2026-02-23T21:03:49.6536386+03:30","Action":"pass","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep3FrameFormat","Elapsed":0.5}
+{"Time":"2026-02-23T21:03:49.6536386+03:30","Action":"run","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep3ChaChaAEAD"}
+{"Time":"2026-02-23T21:03:49.6536386+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep3ChaChaAEAD","Output":"=== RUN   TestStep3ChaChaAEAD\n"}
+{"Time":"2026-02-23T21:03:50.145981+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/crypto","Test":"TestOldTimestamp","Output":"--- PASS: TestOldTimestamp (0.50s)\n"}
+{"Time":"2026-02-23T21:03:50.145981+03:30","Action":"pass","Package":"github.com/xtls/xray-core/proxy/reflex/crypto","Test":"TestOldTimestamp","Elapsed":0.5}
+{"Time":"2026-02-23T21:03:50.145981+03:30","Action":"run","Package":"github.com/xtls/xray-core/proxy/reflex/crypto","Test":"TestReplay"}
+{"Time":"2026-02-23T21:03:50.145981+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/crypto","Test":"TestReplay","Output":"=== RUN   TestReplay\n"}
+{"Time":"2026-02-23T21:03:50.145981+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/crypto","Test":"TestReplay","Output":"--- PASS: TestReplay (0.00s)\n"}
+{"Time":"2026-02-23T21:03:50.145981+03:30","Action":"pass","Package":"github.com/xtls/xray-core/proxy/reflex/crypto","Test":"TestReplay","Elapsed":0}
+{"Time":"2026-02-23T21:03:50.145981+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/crypto","Output":"PASS\n"}
+{"Time":"2026-02-23T21:03:50.149765+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/crypto","Output":"ok  \tgithub.com/xtls/xray-core/proxy/reflex/crypto\t1.702s\n"}
+{"Time":"2026-02-23T21:03:50.1549854+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep3ChaChaAEAD","Output":"--- PASS: TestStep3ChaChaAEAD (0.50s)\n"}
+{"Time":"2026-02-23T21:03:50.1549854+03:30","Action":"pass","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep3ChaChaAEAD","Elapsed":0.5}
+{"Time":"2026-02-23T21:03:50.1549854+03:30","Action":"run","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep3FrameTypeClose"}
+{"Time":"2026-02-23T21:03:50.1549854+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep3FrameTypeClose","Output":"=== RUN   TestStep3FrameTypeClose\n"}
+{"Time":"2026-02-23T21:03:50.1622466+03:30","Action":"pass","Package":"github.com/xtls/xray-core/proxy/reflex/crypto","Elapsed":1.7149999999999999}
+{"Time":"2026-02-23T21:03:50.6563571+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep3FrameTypeClose","Output":"--- PASS: TestStep3FrameTypeClose (0.50s)\n"}
+{"Time":"2026-02-23T21:03:50.6563571+03:30","Action":"pass","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep3FrameTypeClose","Elapsed":0.5}
+{"Time":"2026-02-23T21:03:50.6563571+03:30","Action":"run","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep3ReadFrameWriteFrame"}
+{"Time":"2026-02-23T21:03:50.6563571+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep3ReadFrameWriteFrame","Output":"=== RUN   TestStep3ReadFrameWriteFrame\n"}
+{"Time":"2026-02-23T21:03:50.6563571+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep3ReadFrameWriteFrame","Output":"--- PASS: TestStep3ReadFrameWriteFrame (0.00s)\n"}
+{"Time":"2026-02-23T21:03:50.6563571+03:30","Action":"pass","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep3ReadFrameWriteFrame","Elapsed":0}
+{"Time":"2026-02-23T21:03:50.6563571+03:30","Action":"run","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep3ReplayProtection"}
+{"Time":"2026-02-23T21:03:50.6563571+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep3ReplayProtection","Output":"=== RUN   TestStep3ReplayProtection\n"}
+{"Time":"2026-02-23T21:03:50.6569422+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep3ReplayProtection","Output":"--- PASS: TestStep3ReplayProtection (0.00s)\n"}
+{"Time":"2026-02-23T21:03:50.6569422+03:30","Action":"pass","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep3ReplayProtection","Elapsed":0}
+{"Time":"2026-02-23T21:03:50.6574869+03:30","Action":"run","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep3EncryptionReplay"}
+{"Time":"2026-02-23T21:03:50.6574869+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep3EncryptionReplay","Output":"=== RUN   TestStep3EncryptionReplay\n"}
+{"Time":"2026-02-23T21:03:50.6580136+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep3EncryptionReplay","Output":"--- PASS: TestStep3EncryptionReplay (0.00s)\n"}
+{"Time":"2026-02-23T21:03:50.6580136+03:30","Action":"pass","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep3EncryptionReplay","Elapsed":0}
+{"Time":"2026-02-23T21:03:50.6580136+03:30","Action":"run","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep4Fallback"}
+{"Time":"2026-02-23T21:03:50.6580136+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep4Fallback","Output":"=== RUN   TestStep4Fallback\n"}
+{"Time":"2026-02-23T21:03:50.6590512+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep4Fallback","Output":"--- PASS: TestStep4Fallback (0.00s)\n"}
+{"Time":"2026-02-23T21:03:50.6590512+03:30","Action":"pass","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep4Fallback","Elapsed":0}
+{"Time":"2026-02-23T21:03:50.6590512+03:30","Action":"run","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep4Peek"}
+{"Time":"2026-02-23T21:03:50.6590512+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep4Peek","Output":"=== RUN   TestStep4Peek\n"}
+{"Time":"2026-02-23T21:03:50.6590512+03:30","Action":"run","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep4Peek/FallbackWhenNotReflex"}
+{"Time":"2026-02-23T21:03:50.6590512+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep4Peek/FallbackWhenNotReflex","Output":"=== RUN   TestStep4Peek/FallbackWhenNotReflex\n"}
+{"Time":"2026-02-23T21:03:50.6595699+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep4Peek/FallbackWhenNotReflex","Output":"--- PASS: TestStep4Peek/FallbackWhenNotReflex (0.00s)\n"}
+{"Time":"2026-02-23T21:03:50.6595699+03:30","Action":"pass","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep4Peek/FallbackWhenNotReflex","Elapsed":0}
+{"Time":"2026-02-23T21:03:50.6595699+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep4Peek","Output":"--- PASS: TestStep4Peek (0.00s)\n"}
+{"Time":"2026-02-23T21:03:50.6595699+03:30","Action":"pass","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep4Peek","Elapsed":0}
+{"Time":"2026-02-23T21:03:50.6595699+03:30","Action":"run","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep4ProxyDetectReflexNotFallback"}
+{"Time":"2026-02-23T21:03:50.6595699+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep4ProxyDetectReflexNotFallback","Output":"=== RUN   TestStep4ProxyDetectReflexNotFallback\n"}
+{"Time":"2026-02-23T21:03:50.6600879+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep4ProxyDetectReflexNotFallback","Output":"--- PASS: TestStep4ProxyDetectReflexNotFallback (0.00s)\n"}
+{"Time":"2026-02-23T21:03:50.6600879+03:30","Action":"pass","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep4ProxyDetectReflexNotFallback","Elapsed":0}
+{"Time":"2026-02-23T21:03:50.6600879+03:30","Action":"run","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep5TrafficProfile"}
+{"Time":"2026-02-23T21:03:50.6600879+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep5TrafficProfile","Output":"=== RUN   TestStep5TrafficProfile\n"}
+{"Time":"2026-02-23T21:03:50.6600879+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep5TrafficProfile","Output":"--- PASS: TestStep5TrafficProfile (0.00s)\n"}
+{"Time":"2026-02-23T21:03:50.6600879+03:30","Action":"pass","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep5TrafficProfile","Elapsed":0}
+{"Time":"2026-02-23T21:03:50.6600879+03:30","Action":"run","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep5PaddingTimingControl"}
+{"Time":"2026-02-23T21:03:50.6600879+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep5PaddingTimingControl","Output":"=== RUN   TestStep5PaddingTimingControl\n"}
+{"Time":"2026-02-23T21:03:50.6600879+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep5PaddingTimingControl","Output":"--- PASS: TestStep5PaddingTimingControl (0.00s)\n"}
+{"Time":"2026-02-23T21:03:50.6600879+03:30","Action":"pass","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep5PaddingTimingControl","Elapsed":0}
+{"Time":"2026-02-23T21:03:50.6606017+03:30","Action":"run","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep5GetPacketSizeGetDelay"}
+{"Time":"2026-02-23T21:03:50.6606017+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep5GetPacketSizeGetDelay","Output":"=== RUN   TestStep5GetPacketSizeGetDelay\n"}
+{"Time":"2026-02-23T21:03:50.6606017+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep5GetPacketSizeGetDelay","Output":"--- PASS: TestStep5GetPacketSizeGetDelay (0.00s)\n"}
+{"Time":"2026-02-23T21:03:50.6606017+03:30","Action":"pass","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep5GetPacketSizeGetDelay","Elapsed":0}
+{"Time":"2026-02-23T21:03:50.6606017+03:30","Action":"run","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep5MorphingPolicy"}
+{"Time":"2026-02-23T21:03:50.6606017+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep5MorphingPolicy","Output":"=== RUN   TestStep5MorphingPolicy\n"}
+{"Time":"2026-02-23T21:03:50.6606017+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep5MorphingPolicy","Output":"--- PASS: TestStep5MorphingPolicy (0.00s)\n"}
+{"Time":"2026-02-23T21:03:50.6606017+03:30","Action":"pass","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestStep5MorphingPolicy","Elapsed":0}
+{"Time":"2026-02-23T21:03:50.6606017+03:30","Action":"run","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestIntegrationHandshake"}
+{"Time":"2026-02-23T21:03:50.6606017+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestIntegrationHandshake","Output":"=== RUN   TestIntegrationHandshake\n"}
+{"Time":"2026-02-23T21:03:51.1611503+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestIntegrationHandshake","Output":"--- PASS: TestIntegrationHandshake (0.50s)\n"}
+{"Time":"2026-02-23T21:03:51.1611503+03:30","Action":"pass","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestIntegrationHandshake","Elapsed":0.5}
+{"Time":"2026-02-23T21:03:51.1611503+03:30","Action":"run","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestIntegrationFallback"}
+{"Time":"2026-02-23T21:03:51.1611503+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestIntegrationFallback","Output":"=== RUN   TestIntegrationFallback\n"}
+{"Time":"2026-02-23T21:03:51.1622257+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestIntegrationFallback","Output":"--- PASS: TestIntegrationFallback (0.00s)\n"}
+{"Time":"2026-02-23T21:03:51.1622257+03:30","Action":"pass","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestIntegrationFallback","Elapsed":0}
+{"Time":"2026-02-23T21:03:51.1622257+03:30","Action":"run","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestIntegrationReplay"}
+{"Time":"2026-02-23T21:03:51.1622257+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestIntegrationReplay","Output":"=== RUN   TestIntegrationReplay\n"}
+{"Time":"2026-02-23T21:03:51.162742+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestIntegrationReplay","Output":"--- PASS: TestIntegrationReplay (0.00s)\n"}
+{"Time":"2026-02-23T21:03:51.162742+03:30","Action":"pass","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestIntegrationReplay","Elapsed":0}
+{"Time":"2026-02-23T21:03:51.162742+03:30","Action":"run","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestIntegrationMultipleHandshakes"}
+{"Time":"2026-02-23T21:03:51.162742+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestIntegrationMultipleHandshakes","Output":"=== RUN   TestIntegrationMultipleHandshakes\n"}
+{"Time":"2026-02-23T21:03:51.1632579+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestIntegrationMultipleHandshakes","Output":"--- PASS: TestIntegrationMultipleHandshakes (0.00s)\n"}
+{"Time":"2026-02-23T21:03:51.1632579+03:30","Action":"pass","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestIntegrationMultipleHandshakes","Elapsed":0}
+{"Time":"2026-02-23T21:03:51.1632579+03:30","Action":"run","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestGradingReadResponse"}
+{"Time":"2026-02-23T21:03:51.1632579+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestGradingReadResponse","Output":"=== RUN   TestGradingReadResponse\n"}
+{"Time":"2026-02-23T21:03:51.1637733+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestGradingReadResponse","Output":"--- PASS: TestGradingReadResponse (0.00s)\n"}
+{"Time":"2026-02-23T21:03:51.1637733+03:30","Action":"pass","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestGradingReadResponse","Elapsed":0}
+{"Time":"2026-02-23T21:03:51.1637733+03:30","Action":"run","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestGradingBinaryFrame"}
+{"Time":"2026-02-23T21:03:51.1637733+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestGradingBinaryFrame","Output":"=== RUN   TestGradingBinaryFrame\n"}
+{"Time":"2026-02-23T21:03:51.1637733+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestGradingBinaryFrame","Output":"--- PASS: TestGradingBinaryFrame (0.00s)\n"}
+{"Time":"2026-02-23T21:03:51.1637733+03:30","Action":"pass","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestGradingBinaryFrame","Elapsed":0}
+{"Time":"2026-02-23T21:03:51.1637733+03:30","Action":"run","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestGradingProtocolConstants"}
+{"Time":"2026-02-23T21:03:51.1637733+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestGradingProtocolConstants","Output":"=== RUN   TestGradingProtocolConstants\n"}
+{"Time":"2026-02-23T21:03:51.1637733+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestGradingProtocolConstants","Output":"--- PASS: TestGradingProtocolConstants (0.00s)\n"}
+{"Time":"2026-02-23T21:03:51.1637733+03:30","Action":"pass","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Test":"TestGradingProtocolConstants","Elapsed":0}
+{"Time":"2026-02-23T21:03:51.1637733+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Output":"PASS\n"}
+{"Time":"2026-02-23T21:03:51.1722337+03:30","Action":"output","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Output":"ok  \tgithub.com/xtls/xray-core/proxy/reflex/grading\t2.725s\n"}
+{"Time":"2026-02-23T21:03:51.1878574+03:30","Action":"pass","Package":"github.com/xtls/xray-core/proxy/reflex/grading","Elapsed":2.74}

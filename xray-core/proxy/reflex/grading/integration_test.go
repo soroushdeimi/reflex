@@ -42,6 +42,8 @@ func (m *mockDispatcher) Dispatch(ctx context.Context, dest net.Destination) (*t
 func (m *mockDispatcher) DispatchLink(ctx context.Context, dest net.Destination, link *transport.Link) error {
 	return fmt.Errorf("mock: no outbound")
 }
+func (m *mockDispatcher) Start() error { return nil }
+func (m *mockDispatcher) Close() error { return nil }
 
 // --- Step 1: Structure ---
 
@@ -654,7 +656,7 @@ func TestStep4Fallback(t *testing.T) {
 
 	ctx := context.Background()
 	cfg := &reflex.InboundConfig{
-		Clients: []*reflex.User{{Id: "40000000-2000-4000-8000-000000000006", Policy: "default"}},
+		Clients:  []*reflex.User{{Id: "40000000-2000-4000-8000-000000000006", Policy: "default"}},
 		Fallback: &reflex.Fallback{Dest: fallbackPort},
 	}
 	obj, err := common.CreateObject(ctx, cfg)
