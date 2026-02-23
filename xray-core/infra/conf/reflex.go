@@ -5,6 +5,11 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+// ============================================================
+// Inbound
+// ============================================================
+
+// ReflexInboundConfig is the JSON configuration for a reflex inbound.
 type ReflexInboundConfig struct {
 	Clients []struct {
 		ID     string `json:"id"`
@@ -16,6 +21,7 @@ type ReflexInboundConfig struct {
 	} `json:"fallback"`
 }
 
+// Build implements Buildable — converts JSON config to proto message.
 func (c *ReflexInboundConfig) Build() (proto.Message, error) {
 	config := &reflex.InboundConfig{}
 
@@ -33,4 +39,25 @@ func (c *ReflexInboundConfig) Build() (proto.Message, error) {
 	}
 
 	return config, nil
+}
+
+// ============================================================
+// Outbound
+// ============================================================
+
+// ReflexOutboundConfig is the JSON configuration for a reflex outbound.
+// Fields map to reflex.OutboundConfig proto fields (address, port, id).
+type ReflexOutboundConfig struct {
+	Address string `json:"address"`
+	Port    uint32 `json:"port"`
+	ID      string `json:"id"`
+}
+
+// Build implements Buildable — converts JSON config to proto message.
+func (c *ReflexOutboundConfig) Build() (proto.Message, error) {
+	return &reflex.OutboundConfig{
+		Address: c.Address,
+		Port:    c.Port,
+		Id:      c.ID,
+	}, nil
 }

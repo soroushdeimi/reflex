@@ -199,7 +199,7 @@ func TestOldTimestamp(t *testing.T) {
 
 type nilConn struct{}
 
-func (n nilConn) Read(b []byte) (int, error)         { return 0, nil }
+func (n nilConn) Read(b []byte) (int, error)         { return 0, io.EOF }
 func (n nilConn) Write(b []byte) (int, error)        { return len(b), nil }
 func (n nilConn) Close() error                       { return nil }
 func (n nilConn) LocalAddr() net.Addr                { return nil }
@@ -238,13 +238,13 @@ func TestReplay(t *testing.T) {
 	}
 
 	// First handshake should succeed
-	_, _, err1 := processHandshake(nilConn{}, clients, hs)
+	_, _, err1 := processHandshake(bufio.NewReader(nilConn{}), nilConn{}, clients, hs)
 	if err1 != nil {
 		t.Fatal(err1)
 	}
 
 	// Second handshake must fail
-	_, _, err2 := processHandshake(nilConn{}, clients, hs)
+	_, _, err2 := processHandshake(bufio.NewReader(nilConn{}), nilConn{}, clients, hs)
 	if err2 == nil {
 		t.Fatal("expected replay rejection")
 	}
