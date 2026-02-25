@@ -44,8 +44,8 @@ func handleConn(conn net.Conn) {
 	fmt.Printf("[ Step 4 ] New TCP connection from %s\n", conn.RemoteAddr())
 
 	// === Step 4: Fallback  Peek without consuming bytes ===
-	br := bufio.NewReader(conn)
-	peeked, err := br.Peek(reflex.MinHandshakePeekSize)
+	br := bufio.NewReaderSize(conn, reflex.MinHandshakePeekSize*4)
+	peeked, err := br.Peek(4) // 4 bytes is enough to check magic
 	if err != nil && len(peeked) < 4 {
 		fmt.Println("[ Step 4 ] Too short  dropping connection")
 		return
