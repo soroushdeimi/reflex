@@ -1,33 +1,46 @@
-// Package reflex provides the Reflex proxy protocol for Xray-Core.
-// Config types match the step1 spec (config.proto). Students may replace
-// with protobuf-generated types.
+// Package reflex implements the Reflex proxy protocol.
+// Reflex is a protocol designed for censorship resistance with:
+// - Implicit handshake (hidden inside normal-looking packets)
+// - Fallback support (active probe resistance)
+// - ChaCha20-Poly1305 frame encryption
+// - X25519 key exchange + HKDF key derivation
 package reflex
 
-// User represents a client (step1 spec).
+// User represents a Reflex user with an ID and traffic policy.
 type User struct {
-	Id     string // UUID
+	Id     string
 	Policy string
 }
 
-// Account for protocol.Account (step1).
+// Account is the in-memory representation of a Reflex account.
+// Used for user authentication lookup.
 type Account struct {
 	Id string
 }
 
-// Fallback config (step1).
-type Fallback struct {
-	Dest uint32
-}
-
-// InboundConfig is the inbound config (step1).
+// InboundConfig holds the configuration for the Reflex inbound (server) handler.
 type InboundConfig struct {
 	Clients  []*User
-	Fallback *Fallback
+	Fallback *FallbackDest
 }
 
-// OutboundConfig (step1).
-type OutboundConfig struct {
-	Address string
-	Port    uint32
-	Id      string
+func (*InboundConfig) Reset()         {}
+func (*InboundConfig) String() string { return "" }
+func (*InboundConfig) ProtoMessage()  {}
+
+// FallbackDest configures the port to which non-Reflex connections are forwarded.
+// This provides active-probe resistance: probers see a normal web server.
+type FallbackDest struct {
+	Dest uint32 // TCP port on localhost (e.g., 80 for nginx)
 }
+
+// OutboundConfig holds the configuration for the Reflex outbound (client) handler.
+type OutboundConfig struct {
+	Address string // Server address
+	Port    uint32 // Server port
+	Id      string // User UUID
+}
+
+func (*OutboundConfig) Reset()         {}
+func (*OutboundConfig) String() string { return "" }
+func (*OutboundConfig) ProtoMessage()  {}
