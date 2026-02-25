@@ -2,7 +2,6 @@
 # Output of the go coverage tool
 *.out
 
-
 # IDE
 .idea/
 .vscode/

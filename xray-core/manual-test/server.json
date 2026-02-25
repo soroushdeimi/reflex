@@ -1,0 +1,25 @@
+
+{
+  "log": {
+    "loglevel": "debug",
+    "error": "server-error.log",
+    "access": "server-access.log"
+  },
+  "inbounds": [
+    {
+      "listen": "127.0.0.1",
+      "port": 12345,
+      "protocol": "reflex",
+      "settings": {
+        "clients": [
+          { "id": "57502513-9d90-426f-8b9d-f763cab50952"
+, "policy": "default" }
+        ],
+        "fallback": { "dest": 8080 }
+      }
+    }
+  ],
+  "outbounds": [
+    { "protocol": "freedom" }
+  ]
+}

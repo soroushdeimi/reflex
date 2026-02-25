@@ -1,0 +1,29 @@
+
+{
+  "log": {
+    "loglevel": "debug",
+    "error": "client-error.log",
+    "access": "client-access.log"
+  },
+  "inbounds": [
+    {
+      "listen": "127.0.0.1",
+      "port": 1080,
+      "protocol": "socks",
+      "settings": {
+        "auth": "noauth",
+        "udp": false
+      }
+    }
+  ],
+  "outbounds": [
+    {
+      "protocol": "reflex",
+      "settings": {
+        "address": "127.0.0.1",
+        "port": 12345,
+        "id": "57502513-9d90-426f-8b9d-f763cab50952"
+      }
+    }
+  ]
+}

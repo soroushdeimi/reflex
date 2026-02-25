@@ -1,0 +1,28 @@
+{
+  "log": {
+    "loglevel": "debug"
+  },
+  "inbounds": [
+    {
+      "port": 8443,
+      "protocol": "reflex",
+      "settings": {
+        "clients": [
+          {
+            "id": "550e8400-e29b-41d4-a716-446655440000",
+            "policy": "mimic-http2-api"
+          }
+        ],
+        "fallback": {
+          "dest": 8080
+        }
+      }
+    }
+  ],
+  "outbounds": [
+    {
+      "protocol": "freedom",
+      "settings": {}
+    }
+  ]
+}
