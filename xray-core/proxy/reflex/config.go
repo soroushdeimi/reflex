@@ -24,6 +24,10 @@ type InboundConfig struct {
 	Fallback *FallbackDest
 }
 
+func (*InboundConfig) Reset()         {}
+func (*InboundConfig) String() string { return "" }
+func (*InboundConfig) ProtoMessage()  {}
+
 // FallbackDest configures the port to which non-Reflex connections are forwarded.
 // This provides active-probe resistance: probers see a normal web server.
 type FallbackDest struct {
@@ -36,3 +40,7 @@ type OutboundConfig struct {
 	Port    uint32 // Server port
 	Id      string // User UUID
 }
+
+func (*OutboundConfig) Reset()         {}
+func (*OutboundConfig) String() string { return "" }
+func (*OutboundConfig) ProtoMessage()  {}
